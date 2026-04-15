@@ -3,93 +3,76 @@
  * 处理优惠券、门店、协议等接口
  */
 
-const { database } = require('../config/database');
+const { db } = require('../config/mysql');
 
 /**
  * 获取优惠券列表
  */
-const getCoupons = (req, res) => {
+const getCoupons = async (req, res) => {
   try {
     const { userId, status } = req.query;
 
-    // 这里可以添加筛选逻辑
-    let coupons = database.coupons;
-
+    // 构建查询条件
+    const where = {};
     if (userId) {
-      coupons = coupons.filter(c => c.userId === userId);
+      where.user_id = userId;
     }
-
     if (status) {
-      coupons = coupons.filter(c => c.status === status);
+      where.status = status;
     }
 
-    res.json({
-      success: true,
-      data: coupons
+    const coupons = await db.findMany('coupons', where, {
+      orderBy: 'created_at',
+      order: 'ASC'
     });
+
+    res.success(coupons, '获取优惠券列表成功');
   } catch (error) {
     console.error('获取优惠券列表错误:', error);
-    res.status(500).json({
-      success: false,
-      message: '获取优惠券列表失败'
-    });
+    res.error('获取优惠券列表失败', 500, error);
   }
 };
 
 /**
  * 获取门店列表
  */
-const getStores = (req, res) => {
+const getStores = async (req, res) => {
   try {
-    res.json({
-      success: true,
-      data: database.stores
+    const stores = await db.findMany('stores', {}, {
+      orderBy: 'created_at',
+      order: 'ASC'
     });
+    res.success(stores, '获取门店列表成功');
   } catch (error) {
     console.error('获取门店列表错误:', error);
-    res.status(500).json({
-      success: false,
-      message: '获取门店列表失败'
-    });
+    res.error('获取门店列表失败', 500, error);
   }
 };
 
 /**
  * 获取协议内容
  */
-const getProtocol = (req, res) => {
+const getProtocol = async (req, res) => {
   try {
     const { type } = req.query;
 
     if (!type) {
-      return res.status(400).json({
-        success: false,
-        message: '缺少协议类型'
-      });
+      return res.error('缺少协议类型', 400);
     }
 
-    const content = database.protocols[type];
+    const protocol = await db.findOne('protocols', { type: type });
 
-    if (!content) {
-      return res.status(404).json({
-        success: false,
-        message: '协议不存在'
-      });
+    if (!protocol) {
+      return res.error('协议不存在', 404);
     }
 
-    res.json({
-      success: true,
-      data: {
-        type: type,
-        content: content
-      }
-    });
+    res.success({
+      type: type,
+      content: protocol.content
+    }, '获取协议内容成功');
   } catch (error) {
     console.error('获取协议内容错误:', error);
-    res.status(500).json({
-      success: false,
-      message: '获取协议内容失败'
-    });
+    res.error('获取协议内容失败', 500, error);
   }
 };
 
@@ -101,33 +84,21 @@ const sendSmsCode = (req, res) => {
     const { phone } = req.body;
 
     if (!phone) {
-      return res.status(400).json({
-        success: false,
-        message: '缺少手机号'
-      });
+      return res.error('缺少手机号', 400);
     }
 
     // 验证手机号格式
     const phoneReg = /^1[3-9]\d{9}$/;
     if (!phoneReg.test(phone)) {
-      return res.status(400).json({
-        success: false,
-        message: '手机号格式不正确'
-      });
+      return res.error('手机号格式不正确', 400);
     }
 
     // 实际应调用短信服务发送验证码
     // 这里简化处理，返回成功
-    res.json({
-      success: true,
-      message: '验证码已发送'
-    });
+    res.success(null, '验证码已发送');
   } catch (error) {
     console.error('发送验证码错误:', error);
-    res.status(500).json({
-      success: false,
-      message: '发送验证码失败'
-    });
+    res.error('发送验证码失败', 500, error);
   }
 };
 

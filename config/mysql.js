@@ -10,7 +10,7 @@ const dbConfig = {
   host: process.env.DB_HOST || 'localhost',
   port: process.env.DB_PORT || 3306,
   user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
+  password: process.env.DB_PASSWORD || 'zhenshanhe5273',
   database: process.env.DB_NAME || 'miniprogram_db',
   charset: 'utf8mb4',
   timezone: '+08:00',
@@ -41,6 +41,25 @@ const getPool = () => {
     initPool();
   }
   return pool;
+};
+
+/**
+ * 驼峰式转蛇形命名
+ */
+const camelToSnake = (str) => {
+  return str.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '');
+};
+
+/**
+ * 将对象的驼峰式键名转换为蛇形键名
+ */
+const convertKeysToSnakeCase = (obj) => {
+  return Object.fromEntries(
+    Object.entries(obj).map(([key, value]) => {
+      // 特殊处理嵌套对象？不，目前只处理一级对象
+      return [camelToSnake(key), value];
+    })
+  );
 };
 
 /**
@@ -82,7 +101,15 @@ const generateOrderNo = (prefix = 'DD') => {
 const query = async (sql, params = []) => {
   try {
     const currentPool = getPool();
-    const [results] = await currentPool.execute(sql, params);
+    // 确保参数都是正确的类型
+    const processedParams = params.map(param => {
+      if (typeof param === 'string' && !isNaN(param) && param !== '') {
+        const num = parseFloat(param);
+        return Number.isInteger(num) ? parseInt(param) : num;
+      }
+      return param;
+    });
+    const [results] = await currentPool.execute(sql, processedParams);
     return results;
   } catch (error) {
     console.error('数据库查询错误:', error);
@@ -125,8 +152,9 @@ class Database {
    * @param {String} fields - 查询字段，默认*
    */
   async findOne(table, where, fields = '*') {
-    const conditions = Object.keys(where).map(key => `${key} = ?`).join(' AND ');
-    const values = Object.values(where);
+    const snakeCaseWhere = convertKeysToSnakeCase(where);
+    const conditions = Object.keys(snakeCaseWhere).map(key => `${key} = ?`).join(' AND ');
+    const values = Object.values(snakeCaseWhere);
     const sql = `SELECT ${fields} FROM ${table} WHERE ${conditions} LIMIT 1`;
 
     const results = await query(sql, values);
@@ -148,18 +176,24 @@ class Database {
       offset = 0
     } = options;
 
+    const intLimit = Number.isInteger(limit) ? limit : parseInt(limit);
+    const intOffset = Number.isInteger(offset) ? offset : parseInt(offset);
+
+    // 转换orderBy为蛇形命名
+    const snakeCaseOrderBy = camelToSnake(orderBy);
+
     let sql = `SELECT ${fields} FROM ${table}`;
     const values = [];
 
     if (Object.keys(where).length > 0) {
-      const conditions = Object.keys(where).map(key => `${key} = ?`).join(' AND ');
+      const snakeCaseWhere = convertKeysToSnakeCase(where);
+      const conditions = Object.keys(snakeCaseWhere).map(key => `${key} = ?`).join(' AND ');
       sql += ` WHERE ${conditions}`;
-      values.push(...Object.values(where));
+      values.push(...Object.values(snakeCaseWhere));
     }
 
-    sql += ` ORDER BY ${orderBy} ${order}`;
-    sql += ` LIMIT ? OFFSET ?`;
-    values.push(parseInt(limit), parseInt(offset));
+    sql += ` ORDER BY ${snakeCaseOrderBy} ${order}`;
+    sql += ` LIMIT ${intLimit} OFFSET ${intOffset}`;
 
     return await query(sql, values);
   }
@@ -171,8 +205,9 @@ class Database {
    * @returns {Promise} 插入结果
    */
   async insert(table, data) {
-    const fields = Object.keys(data);
-    const values = Object.values(data);
+    const snakeCaseData = convertKeysToSnakeCase(data);
+    const fields = Object.keys(snakeCaseData);
+    const values = Object.values(snakeCaseData);
     const placeholders = fields.map(() => '?').join(', ');
 
     const sql = `INSERT INTO ${table} (${fields.join(', ')}) VALUES (${placeholders})`;
@@ -228,9 +263,12 @@ class Database {
    * @returns {Promise} 更新结果
    */
   async update(table, data, where) {
-    const fields = Object.keys(data).map(key => `${key} = ?`).join(', ');
-    const conditions = Object.keys(where).map(key => `${key} = ?`).join(' AND ');
-    const values = [...Object.values(data), ...Object.values(where)];
+    const snakeCaseData = convertKeysToSnakeCase(data);
+    const snakeCaseWhere = convertKeysToSnakeCase(where);
+
+    const fields = Object.keys(snakeCaseData).map(key => `${key} = ?`).join(', ');
+    const conditions = Object.keys(snakeCaseWhere).map(key => `${key} = ?`).join(' AND ');
+    const values = [...Object.values(snakeCaseData), ...Object.values(snakeCaseWhere)];
 
     const sql = `UPDATE ${table} SET ${fields} WHERE ${conditions}`;
 
@@ -248,8 +286,9 @@ class Database {
    * @returns {Promise} 删除结果
    */
   async delete(table, where) {
-    const conditions = Object.keys(where).map(key => `${key} = ?`).join(' AND ');
-    const values = Object.values(where);
+    const snakeCaseWhere = convertKeysToSnakeCase(where);
+    const conditions = Object.keys(snakeCaseWhere).map(key => `${key} = ?`).join(' AND ');
+    const values = Object.values(snakeCaseWhere);
 
     const sql = `DELETE FROM ${table} WHERE ${conditions}`;
 
@@ -270,9 +309,10 @@ class Database {
     const values = [];
 
     if (Object.keys(where).length > 0) {
-      const conditions = Object.keys(where).map(key => `${key} = ?`).join(' AND ');
+      const snakeCaseWhere = convertKeysToSnakeCase(where);
+      const conditions = Object.keys(snakeCaseWhere).map(key => `${key} = ?`).join(' AND ');
       sql += ` WHERE ${conditions}`;
-      values.push(...Object.values(where));
+      values.push(...Object.values(snakeCaseWhere));
     }
 
     const results = await query(sql, values);

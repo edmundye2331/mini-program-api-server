@@ -4,43 +4,33 @@
  */
 
 const { verifyToken, extractToken } = require('../utils/jwt');
-const { database } = require('../config/database');
+const { db } = require('../config/mysql');
 
 /**
  * JWT认证中间件
  * 验证请求中的JWT token，并提取用户信息
  */
-const authMiddleware = (req, res, next) => {
+const authMiddleware = async (req, res, next) => {
   try {
     // 从请求头获取token
     const authHeader = req.headers['authorization'] || req.headers['x-token'];
 
     if (!authHeader) {
-      return res.status(401).json({
-        success: false,
-        message: '未提供认证令牌',
-        code: 'NO_TOKEN'
-      });
+      return res.error('未提供认证令牌', 401, { code: 'NO_TOKEN' });
     }
 
     // 提取token
     const token = extractToken(authHeader);
 
     if (!token) {
-      return res.status(401).json({
-        success: false,
-        message: '令牌格式错误',
-        code: 'INVALID_TOKEN_FORMAT'
-      });
+      return res.error('令牌格式错误', 401, { code: 'INVALID_TOKEN_FORMAT' });
     }
 
     // 验证token
     const verification = verifyToken(token);
 
     if (!verification.success) {
-      return res.status(401).json({
-        success: false,
-        message: '令牌无效或已过期',
+      return res.error('令牌无效或已过期', 401, {
         code: 'TOKEN_VERIFICATION_FAILED',
         error: verification.error
       });
@@ -50,14 +40,10 @@ const authMiddleware = (req, res, next) => {
     const { userId, phone } = verification.data;
 
     // 验证用户是否仍然存在
-    const user = database.users.get(userId);
+    const user = await db.findOne('users', { id: userId });
 
     if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: '用户不存在',
-        code: 'USER_NOT_FOUND'
-      });
+      return res.error('用户不存在', 401, { code: 'USER_NOT_FOUND' });
     }
 
     // 将用户信息附加到请求对象
@@ -70,11 +56,7 @@ const authMiddleware = (req, res, next) => {
     next();
   } catch (error) {
     console.error('认证中间件错误:', error);
-    return res.status(500).json({
-      success: false,
-      message: '认证过程出错',
-      code: 'AUTH_ERROR'
-    });
+    return res.error('认证过程出错', 500, { code: 'AUTH_ERROR' });
   }
 };
 
@@ -83,7 +65,7 @@ const authMiddleware = (req, res, next) => {
  * 如果提供了token则验证，如果没有提供则跳过
  * 用于某些既可以登录也可以不登录访问的接口
  */
-const optionalAuthMiddleware = (req, res, next) => {
+const optionalAuthMiddleware = async (req, res, next) => {
   try {
     const authHeader = req.headers['authorization'] || req.headers['x-token'];
 
@@ -108,7 +90,7 @@ const optionalAuthMiddleware = (req, res, next) => {
     }
 
     const { userId } = verification.data;
-    const user = database.users.get(userId);
+    const user = await db.findOne('users', { id: userId });
 
     if (user) {
       req.user = {

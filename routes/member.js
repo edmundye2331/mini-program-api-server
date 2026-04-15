@@ -5,20 +5,23 @@
 const express = require('express');
 const router = express.Router();
 const memberController = require('../controllers/memberController');
+const { authMiddleware } = require('../middleware/auth');
+const { generalLimiter } = require('../middleware/rateLimiter');
+const { validate, rechargeSchema } = require('../middleware/validationMiddleware');
 
-// 获取会员信息
-router.get('/info', memberController.getMemberInfo);
+// 获取会员信息 - 需要认证
+router.get('/info', authMiddleware, generalLimiter, memberController.getMemberInfo);
 
-// 获取余额
-router.get('/balance', memberController.getBalance);
+// 获取余额 - 需要认证
+router.get('/balance', authMiddleware, generalLimiter, memberController.getBalance);
 
-// 充值
-router.post('/recharge', memberController.recharge);
+// 充值 - 需要认证
+router.post('/recharge', authMiddleware, generalLimiter, validate(rechargeSchema), memberController.recharge);
 
-// 获取充值记录
-router.get('/recharge-records', memberController.getRechargeRecords);
+// 获取充值记录 - 需要认证
+router.get('/recharge-records', authMiddleware, generalLimiter, memberController.getRechargeRecords);
 
-// 获取余额记录
-router.get('/balance-records', memberController.getBalanceRecords);
+// 获取余额记录 - 需要认证
+router.get('/balance-records', authMiddleware, generalLimiter, memberController.getBalanceRecords);
 
 module.exports = router;

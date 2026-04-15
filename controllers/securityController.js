@@ -1,176 +1,141 @@
-const { database, generateId, formatDate } = require('../config/database.js');
+const { db, generateId, formatDate } = require('../config/mysql');
+const { hashPassword, verifyPassword } = require('../utils/encryption');
 
 /**
  * 修改密码
  */
-exports.changePassword = (req, res) => {
+exports.changePassword = async (req, res) => {
   try {
     const { userId, oldPassword, newPassword } = req.body;
 
     if (!userId || !oldPassword || !newPassword) {
-      return res.status(400).json({
-        success: false,
-        message: '缺少必要参数'
-      });
+      return res.error('缺少必要参数', 400);
     }
 
     // 查找用户
-    const user = database.users.get(userId);
+    const user = await db.findOne('users', { id: userId });
 
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: '用户不存在'
-      });
+      return res.error('用户不存在', 404);
     }
 
-    // 简化验证：假设用户有password字段（实际应该有加密）
-    // 这里为了演示，不做密码加密
-    if (user.password && user.password !== oldPassword) {
-      return res.status(400).json({
-        success: false,
-        message: '原密码错误'
-      });
+    // 验证原密码
+    if (user.password) {
+      const isPasswordValid = await verifyPassword(oldPassword, user.password);
+      if (!isPasswordValid) {
+        return res.error('原密码错误', 400);
+      }
+    } else {
+      return res.error('请先设置密码', 400);
     }
+
+    // 加密新密码
+    const hashedPassword = await hashPassword(newPassword);
 
     // 更新密码
-    user.password = newPassword;
-    user.updatedAt = formatDate();
+    await db.update('users', {
+      password: hashedPassword,
+      updated_at: formatDate()
+    }, { id: userId });
 
     // 记录密码修改历史
-    database.passwordHistory.push({
+    await db.insert('password_history', {
       id: generateId(),
-      userId,
-      changedAt: formatDate(),
+      user_id: userId,
+      changed_at: formatDate(),
       ip: req.ip || 'unknown'
     });
 
-    res.json({
-      success: true,
-      message: '密码修改成功'
-    });
+    res.success(null, '密码修改成功');
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: '密码修改失败',
-      error: error.message
-    });
+    res.error('密码修改失败', 500, error);
   }
 };
 
 /**
  * 绑定/更换手机号
  */
-exports.bindPhone = (req, res) => {
+exports.bindPhone = async (req, res) => {
   try {
     const { userId, phone, code } = req.body;
 
     if (!userId || !phone || !code) {
-      return res.status(400).json({
-        success: false,
-        message: '缺少必要参数'
-      });
+      return res.error('缺少必要参数', 400);
     }
 
     // 验证手机号格式
     const phoneRegex = /^1[3-9]\d{9}$/;
     if (!phoneRegex.test(phone)) {
-      return res.status(400).json({
-        success: false,
-        message: '手机号格式不正确'
-      });
+      return res.error('手机号格式不正确', 400);
     }
 
     // 简化验证：验证码只要是6位数字即可
     if (code.length !== 6 || !/^\d{6}$/.test(code)) {
-      return res.status(400).json({
-        success: false,
-        message: '验证码错误'
-      });
+      return res.error('验证码错误', 400);
     }
 
     // 查找用户
-    const user = database.users.get(userId);
+    const user = await db.findOne('users', { id: userId });
 
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: '用户不存在'
-      });
+      return res.error('用户不存在', 404);
     }
 
     // 更新手机号
-    user.phone = phone;
-    user.updatedAt = formatDate();
+    await db.update('users', {
+      phone: phone,
+      updated_at: formatDate()
+    }, { id: userId });
 
-    res.json({
-      success: true,
-      message: '手机号绑定成功'
-    });
+    res.success(null, '手机号绑定成功');
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: '手机号绑定失败',
-      error: error.message
-    });
+    res.error('手机号绑定失败', 500, error);
   }
 };
 
 /**
  * 获取登录记录
  */
-exports.getLoginLogs = (req, res) => {
+exports.getLoginLogs = async (req, res) => {
   try {
     const { userId } = req.query;
 
     if (!userId) {
-      return res.status(400).json({
-        success: false,
-        message: '缺少用户ID'
-      });
+      return res.error('缺少用户ID', 400);
     }
 
     // 获取该用户的登录记录
-    const userLogs = database.loginLogs.filter(log => log.userId === userId);
-
-    // 按时间倒序排列，最多返回20条
-    const logs = userLogs
-      .sort((a, b) => new Date(b.loginTime) - new Date(a.loginTime))
-      .slice(0, 20);
-
-    res.json({
-      success: true,
-      message: '获取登录记录成功',
-      data: {
-        list: logs,
-        total: logs.length
-      }
+    const userLogs = await db.findMany('login_logs', { user_id: userId }, {
+      orderBy: 'login_time',
+      order: 'DESC',
+      limit: 20
     });
+
+    res.success({
+      list: userLogs,
+      total: userLogs.length
+    }, '获取登录记录成功');
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: '获取登录记录失败',
-      error: error.message
-    });
+    res.error('获取登录记录失败', 500, error);
   }
 };
 
 /**
  * 记录登录
  */
-exports.recordLogin = (userId, loginType = 'phone', userInfo = {}) => {
+exports.recordLogin = async (userId, loginType = 'phone', userInfo = {}) => {
   try {
     const log = {
       id: generateId(),
-      userId,
-      loginType,
-      loginTime: formatDate(),
+      user_id: userId,
+      login_type: loginType,
+      login_time: formatDate(),
       ip: 'unknown',
       device: 'miniprogram',
       ...userInfo
     };
 
-    database.loginLogs.push(log);
+    await db.insert('login_logs', log);
 
     return log;
   } catch (error) {
@@ -182,50 +147,35 @@ exports.recordLogin = (userId, loginType = 'phone', userInfo = {}) => {
 /**
  * 注销账号
  */
-exports.deleteAccount = (req, res) => {
+exports.deleteAccount = async (req, res) => {
   try {
     const { userId } = req.body;
 
     if (!userId) {
-      return res.status(400).json({
-        success: false,
-        message: '缺少用户ID'
-      });
+      return res.error('缺少用户ID', 400);
     }
 
     // 查找用户
-    const user = database.users.get(userId);
+    const user = await db.findOne('users', { id: userId });
 
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: '用户不存在'
-      });
+      return res.error('用户不存在', 404);
     }
 
     // 删除用户数据
-    database.users.delete(userId);
-    database.members.delete(userId);
-    database.carts.delete(userId);
-    database.birthdayGifts.delete(userId);
+    await db.delete('users', { id: userId });
+    await db.delete('members', { user_id: userId });
+    await db.delete('carts', { user_id: userId });
+    await db.delete('birthday_gifts', { user_id: userId });
 
     // 保留订单记录但标记为已注销
-    database.orders.forEach(order => {
-      if (order.userId === userId) {
-        order.deleted = true;
-        order.deletedAt = formatDate();
-      }
-    });
+    await db.update('orders', {
+      deleted: true,
+      deleted_at: formatDate()
+    }, { user_id: userId });
 
-    res.json({
-      success: true,
-      message: '账号注销成功'
-    });
+    res.success(null, '账号注销成功');
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: '账号注销失败',
-      error: error.message
-    });
+    res.error('账号注销失败', 500, error);
   }
 };

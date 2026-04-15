@@ -1,228 +1,156 @@
-# 微信小程序API服务器
+# 微信小程序后端API服务器
 
-提供会员、订单、积分等功能的RESTful API后端服务。
+## 项目简介
 
-## 安装依赖
+这是一个基于Express.js的微信小程序后端API服务器，提供用户管理、会员系统、商品管理、订单系统、积分系统等完整的后端服务。
+
+## 技术栈
+
+- Node.js + Express.js
+- MySQL + mysql2/promise
+- JWT 身份验证
+- CORS 跨域支持
+
+## 环境配置
+
+### 1. 安装依赖
 
 ```bash
-cd /Users/bigdata/miniprogram-api-server
 npm install
 ```
 
-## 启动服务器
+### 2. 配置数据库
+
+首先创建MySQL数据库并初始化表结构：
 
 ```bash
-npm start
+mysql -u root -p < init_db.sql
 ```
 
-开发模式（自动重启）：
+### 3. 配置环境变量
+
+创建.env文件，或者直接修改config/mysql.js中的数据库配置：
+
+```env
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=your_password
+DB_NAME=miniprogram_db
+PORT=3000
+NODE_ENV=development
+```
+
+### 4. 启动服务器
+
+```bash
+node server.js
+```
+
+或者使用nodemon自动重启：
+
 ```bash
 npm run dev
 ```
 
-## API接口文档
+## API接口
 
-### 基础URL
-```
-http://localhost:3000/api
-```
+### 用户接口
+- POST /api/user/login/phone - 手机号登录
+- POST /api/user/login/wechat - 微信登录
+- GET /api/user/info - 获取用户信息
+- POST /api/user/update - 更新用户信息
+- POST /api/user/avatar/upload - 上传头像
+- POST /api/user/phone/decrypt - 解密微信手机号
 
-### 用户相关接口
+### 会员接口
+- GET /api/member/info - 获取会员信息
+- GET /api/member/balance - 获取余额
+- POST /api/member/recharge - 充值
+- GET /api/member/recharge-records - 获取充值记录
+- GET /api/member/balance-records - 获取余额记录
 
-#### 1. 手机号登录
-```
-POST /api/user/login/phone
-```
-请求参数：
-```json
-{
-  "phone": "13800138000",
-  "code": "123456"
-}
-```
+### 商品接口
+- GET /api/goods/categories - 获取商品分类
+- GET /api/goods/list - 获取商品列表
+- GET /api/goods/detail/:id - 获取商品详情
+- POST /api/goods/cart/add - 添加到购物车
+- GET /api/goods/cart/list - 获取购物车列表
+- POST /api/goods/cart/update - 更新购物车商品数量
+- POST /api/goods/cart/delete - 删除购物车商品
+- POST /api/goods/cart/clear - 清空购物车
 
-#### 2. 微信登录
-```
-POST /api/user/login/wechat
-```
-请求参数：
-```json
-{
-  "code": "wx_code",
-  "userInfo": {
-    "avatarUrl": "头像URL",
-    "nickName": "昵称",
-    "gender": 1,
-    "city": "城市",
-    "province": "省份",
-    "country": "国家"
-  }
-}
-```
+### 订单接口
+- POST /api/order/create - 创建订单
+- GET /api/order/list - 获取订单列表
+- GET /api/order/detail/:orderId - 获取订单详情
+- POST /api/order/cancel/:orderId - 取消订单
+- POST /api/order/pay/:orderId - 支付订单
+- PUT /api/order/status/:orderId - 更新订单状态
 
-#### 3. 获取用户信息
-```
-GET /api/user/info?userId=xxx
-```
+### 积分接口
+- GET /api/points/balance - 获取积分余额
+- GET /api/points/goods - 获取积分商城商品
+- POST /api/points/exchange - 积分兑换
+- GET /api/points/records - 获取积分明细
+- GET /api/points/exchange-records - 获取兑换记录
 
-#### 4. 更新用户信息
-```
-POST /api/user/update
-```
+### 安全接口
+- POST /api/security/password/change - 修改密码
+- POST /api/security/phone/bind - 绑定/更换手机号
+- GET /api/security/login/logs - 获取登录记录
+- POST /api/security/account/delete - 注销账号
 
-### 会员相关接口
+### 生日礼接口
+- GET /api/birthday/gift - 获取生日礼信息
+- POST /api/birthday/gift/claim - 领取生日礼
+- GET /api/birthday/gift/records - 获取生日礼领取记录
 
-#### 1. 获取会员信息
-```
-GET /api/member/info?userId=xxx
-```
+### 通用接口
+- GET /api/common/coupons - 获取优惠券列表
+- GET /api/common/stores - 获取门店列表
+- GET /api/common/protocol - 获取协议内容
+- POST /api/common/sms/send - 发送验证码
 
-#### 2. 获取余额
-```
-GET /api/member/balance?userId=xxx
-```
+## 项目结构
 
-#### 3. 充值
 ```
-POST /api/member/recharge
-```
-请求参数：
-```json
-{
-  "userId": "xxx",
-  "amount": 500,
-  "bonusAmount": 80
-}
-```
-
-#### 4. 获取充值记录
-```
-GET /api/member/recharge-records?userId=xxx&page=1&limit=20
-```
-
-#### 5. 获取余额记录
-```
-GET /api/member/balance-records?userId=xxx&page=1&limit=20
-```
-
-### 订单相关接口
-
-#### 1. 创建订单
-```
-POST /api/order/create
-```
-请求参数：
-```json
-{
-  "userId": "xxx",
-  "orderType": "dian",
-  "items": [
-    { "id": 1, "name": "商品名", "quantity": 2, "price": 100 }
-  ],
-  "totalAmount": 200,
-  "remark": "备注"
-}
-```
-
-#### 2. 获取订单列表
-```
-GET /api/order/list?userId=xxx&orderType=dian&page=1&limit=20
-```
-
-#### 3. 获取订单详情
-```
-GET /api/order/detail/:orderId
-```
-
-#### 4. 取消订单
-```
-POST /api/order/cancel/:orderId
-```
-
-### 积分相关接口
-
-#### 1. 获取积分余额
-```
-GET /api/points/balance?userId=xxx
-```
-
-#### 2. 获取积分商城商品
-```
-GET /api/points/goods
-```
-
-#### 3. 积分兑换
-```
-POST /api/points/exchange
-```
-请求参数：
-```json
-{
-  "userId": "xxx",
-  "goodsId": 1
-}
-```
-
-#### 4. 获取积分明细
-```
-GET /api/points/records?userId=xxx&page=1&limit=20
-```
-
-#### 5. 获取兑换记录
-```
-GET /api/points/exchange-records?userId=xxx&page=1&limit=20
-```
-
-### 其他接口
-
-#### 1. 获取优惠券列表
-```
-GET /api/common/coupons?userId=xxx&status=available
-```
-
-#### 2. 获取门店列表
-```
-GET /api/common/stores
-```
-
-#### 3. 获取协议内容
-```
-GET /api/common/protocol?type=recharge
-```
-
-#### 4. 发送验证码
-```
-POST /api/common/sms/send
-```
-请求参数：
-```json
-{
-  "phone": "13800138000"
-}
-```
-
-## 响应格式
-
-### 成功响应
-```json
-{
-  "success": true,
-  "message": "操作成功",
-  "data": {}
-}
-```
-
-### 失败响应
-```json
-{
-  "success": false,
-  "message": "错误信息"
-}
+.
+├── config/              # 配置文件
+│   ├── mysql.js        # MySQL数据库配置
+│   └── cors.js         # CORS配置
+├── controllers/         # 控制器
+│   ├── userController.js
+│   ├── memberController.js
+│   ├── goodsController.js
+│   ├── orderController.js
+│   ├── pointsController.js
+│   ├── securityController.js
+│   ├── birthdayController.js
+│   └── commonController.js
+├── middleware/          # 中间件
+│   ├── auth.js         # 身份验证中间件
+│   └── rateLimiter.js # 速率限制中间件
+├── routes/             # 路由
+│   ├── user.js
+│   ├── member.js
+│   ├── goods.js
+│   ├── order.js
+│   ├── points.js
+│   ├── security.js
+│   ├── birthday.js
+│   └── common.js
+├── utils/              # 工具函数
+│   └── jwt.js         # JWT工具
+├── init_db.sql        # 数据库初始化脚本
+├── server.js          # 服务器入口文件
+└── package.json       # 项目配置
 ```
 
 ## 注意事项
 
-1. 当前使用内存数据库，服务器重启后数据会丢失
-2. 生产环境应使用MongoDB、MySQL等数据库
-3. token验证当前是简化版本，生产环境应使用JWT
-4. 验证码发送当前是模拟的，生产环境需要对接短信服务
+1. 确保MySQL服务已启动
+2. 首次运行前请先执行init_db.sql创建数据库表
+3. 请根据实际情况修改数据库配置
+4. 生产环境请修改NODE_ENV为production
+5. 请确保端口3000未被占用
