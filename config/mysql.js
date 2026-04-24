@@ -4,19 +4,23 @@
  */
 
 const mysql = require('mysql2/promise');
+const crypto = require('crypto');
 
 // 数据库配置
 const dbConfig = {
   host: process.env.DB_HOST || 'localhost',
   port: process.env.DB_PORT || 3306,
   user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || 'zhenshanhe5273',
+  password: process.env.DB_PASSWORD || '',
   database: process.env.DB_NAME || 'miniprogram_db',
   charset: 'utf8mb4',
   timezone: '+08:00',
-  connectionLimit: 10,
+  connectionLimit: parseInt(process.env.DB_POOL_SIZE || '20', 10),
   waitForConnections: true,
-  queueLimit: 0
+  queueLimit: 0,
+  connectTimeout: parseInt(process.env.DB_CONNECT_TIMEOUT || '10000', 10),
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 10000,
 };
 
 // 创建连接池
@@ -28,7 +32,33 @@ let pool = null;
 const initPool = () => {
   if (!pool) {
     pool = mysql.createPool(dbConfig);
-    console.log('MySQL连接池已创建');
+    console.log('✅ MySQL连接池已创建，最大连接数:', dbConfig.connectionLimit);
+
+    // 监听连接池事件
+    pool.on('connection', (connection) => {
+      // 生产环境移除console.log
+      if (process.env.NODE_ENV === 'production') {
+        console.log('✅ 新的数据库连接已建立');
+      }
+    });
+
+    pool.on('acquire', (connection) => {
+      // 生产环境移除console.log
+      if (process.env.NODE_ENV === 'production') {
+        console.log('🔌 从连接池获取连接');
+      }
+    });
+
+    pool.on('release', (connection) => {
+      // 生产环境移除console.log
+      if (process.env.NODE_ENV === 'production') {
+        console.log('🔌 连接已释放回连接池');
+      }
+    });
+
+    pool.on('error', (err) => {
+      console.error('❌ 数据库连接池错误:', err);
+    });
   }
   return pool;
 };
@@ -46,21 +76,22 @@ const getPool = () => {
 /**
  * 驼峰式转蛇形命名
  */
-const camelToSnake = (str) => {
-  return str.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '');
-};
+const camelToSnake = (str) =>
+  str
+    .replace(/([A-Z])/g, '_$1')
+    .toLowerCase()
+    .replace(/^_/, '');
 
 /**
  * 将对象的驼峰式键名转换为蛇形键名
  */
-const convertKeysToSnakeCase = (obj) => {
-  return Object.fromEntries(
-    Object.entries(obj).map(([key, value]) => {
+const convertKeysToSnakeCase = (obj) =>
+  Object.fromEntries(
+    Object.entries(obj).map(([key, value]) =>
       // 特殊处理嵌套对象？不，目前只处理一级对象
-      return [camelToSnake(key), value];
-    })
+      [camelToSnake(key), value]
+    )
   );
-};
 
 /**
  * 格式化日期为MySQL格式
@@ -79,16 +110,16 @@ const formatDate = () => {
 /**
  * 生成UUID
  */
-const generateId = () => {
-  return require('crypto').randomBytes(16).toString('hex');
-};
+const generateId = () => crypto.randomBytes(16).toString('hex');
 
 /**
  * 生成订单号
  */
 const generateOrderNo = (prefix = 'DD') => {
   const timestamp = Date.now().toString();
-  const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+  const random = Math.floor(Math.random() * 1000)
+    .toString()
+    .padStart(3, '0');
   return `${prefix}${timestamp}${random}`;
 };
 
@@ -102,19 +133,23 @@ const query = async (sql, params = []) => {
   try {
     const currentPool = getPool();
     // 确保参数都是正确的类型
-    const processedParams = params.map(param => {
-      if (typeof param === 'string' && !isNaN(param) && param !== '') {
+    const processedParams = params.map((param) => {
+      // 只有纯数字字符串才会被转换为数字类型，避免将UUID等包含字母的字符串错误转换
+      if (typeof param === 'string' && /^-?\d+(\.\d+)?$/.test(param.trim())) {
         const num = parseFloat(param);
-        return Number.isInteger(num) ? parseInt(param) : num;
+        return Number.isInteger(num) ? parseInt(param, 10) : num;
       }
       return param;
     });
     const [results] = await currentPool.execute(sql, processedParams);
     return results;
   } catch (error) {
-    console.error('数据库查询错误:', error);
-    console.error('SQL:', sql);
-    console.error('参数:', params);
+    // 生产环境移除console.error
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('数据库查询错误:', error);
+      console.error('SQL:', sql);
+      console.error('参数:', params);
+    }
     throw error;
   }
 };
@@ -153,7 +188,9 @@ class Database {
    */
   async findOne(table, where, fields = '*') {
     const snakeCaseWhere = convertKeysToSnakeCase(where);
-    const conditions = Object.keys(snakeCaseWhere).map(key => `${key} = ?`).join(' AND ');
+    const conditions = Object.keys(snakeCaseWhere)
+      .map((key) => `${key} = ?`)
+      .join(' AND ');
     const values = Object.values(snakeCaseWhere);
     const sql = `SELECT ${fields} FROM ${table} WHERE ${conditions} LIMIT 1`;
 
@@ -173,11 +210,11 @@ class Database {
       orderBy = 'created_at',
       order = 'DESC',
       limit = 100,
-      offset = 0
+      offset = 0,
     } = options;
 
-    const intLimit = Number.isInteger(limit) ? limit : parseInt(limit);
-    const intOffset = Number.isInteger(offset) ? offset : parseInt(offset);
+    const intLimit = Number.isInteger(limit) ? limit : parseInt(limit, 10);
+    const intOffset = Number.isInteger(offset) ? offset : parseInt(offset, 10);
 
     // 转换orderBy为蛇形命名
     const snakeCaseOrderBy = camelToSnake(orderBy);
@@ -187,7 +224,9 @@ class Database {
 
     if (Object.keys(where).length > 0) {
       const snakeCaseWhere = convertKeysToSnakeCase(where);
-      const conditions = Object.keys(snakeCaseWhere).map(key => `${key} = ?`).join(' AND ');
+      const conditions = Object.keys(snakeCaseWhere)
+        .map((key) => `${key} = ?`)
+        .join(' AND ');
       sql += ` WHERE ${conditions}`;
       values.push(...Object.values(snakeCaseWhere));
     }
@@ -195,7 +234,7 @@ class Database {
     sql += ` ORDER BY ${snakeCaseOrderBy} ${order}`;
     sql += ` LIMIT ${intLimit} OFFSET ${intOffset}`;
 
-    return await query(sql, values);
+    return query(sql, values);
   }
 
   /**
@@ -215,7 +254,7 @@ class Database {
     const results = await query(sql, values);
     return {
       insertId: results.insertId,
-      affectedRows: results.affectedRows
+      affectedRows: results.affectedRows,
     };
   }
 
@@ -240,10 +279,13 @@ class Database {
     try {
       await connection.beginTransaction();
 
-      for (const data of dataArray) {
-        const values = Object.values(data);
-        await connection.execute(sql, values);
-      }
+      // 使用Promise.all批量处理插入操作
+      await Promise.all(
+        dataArray.map(async (data) => {
+          const values = Object.values(data);
+          await connection.execute(sql, values);
+        })
+      );
 
       await connection.commit();
       return { affectedRows: dataArray.length };
@@ -266,16 +308,23 @@ class Database {
     const snakeCaseData = convertKeysToSnakeCase(data);
     const snakeCaseWhere = convertKeysToSnakeCase(where);
 
-    const fields = Object.keys(snakeCaseData).map(key => `${key} = ?`).join(', ');
-    const conditions = Object.keys(snakeCaseWhere).map(key => `${key} = ?`).join(' AND ');
-    const values = [...Object.values(snakeCaseData), ...Object.values(snakeCaseWhere)];
+    const fields = Object.keys(snakeCaseData)
+      .map((key) => `${key} = ?`)
+      .join(', ');
+    const conditions = Object.keys(snakeCaseWhere)
+      .map((key) => `${key} = ?`)
+      .join(' AND ');
+    const values = [
+      ...Object.values(snakeCaseData),
+      ...Object.values(snakeCaseWhere),
+    ];
 
     const sql = `UPDATE ${table} SET ${fields} WHERE ${conditions}`;
 
     const results = await query(sql, values);
     return {
       affectedRows: results.affectedRows,
-      changedRows: results.changedRows
+      changedRows: results.changedRows,
     };
   }
 
@@ -287,14 +336,16 @@ class Database {
    */
   async delete(table, where) {
     const snakeCaseWhere = convertKeysToSnakeCase(where);
-    const conditions = Object.keys(snakeCaseWhere).map(key => `${key} = ?`).join(' AND ');
+    const conditions = Object.keys(snakeCaseWhere)
+      .map((key) => `${key} = ?`)
+      .join(' AND ');
     const values = Object.values(snakeCaseWhere);
 
     const sql = `DELETE FROM ${table} WHERE ${conditions}`;
 
     const results = await query(sql, values);
     return {
-      affectedRows: results.affectedRows
+      affectedRows: results.affectedRows,
     };
   }
 
@@ -310,7 +361,9 @@ class Database {
 
     if (Object.keys(where).length > 0) {
       const snakeCaseWhere = convertKeysToSnakeCase(where);
-      const conditions = Object.keys(snakeCaseWhere).map(key => `${key} = ?`).join(' AND ');
+      const conditions = Object.keys(snakeCaseWhere)
+        .map((key) => `${key} = ?`)
+        .join(' AND ');
       sql += ` WHERE ${conditions}`;
       values.push(...Object.values(snakeCaseWhere));
     }
@@ -343,7 +396,7 @@ class Database {
       orderBy = 'created_at',
       order = 'DESC',
       page = 1,
-      pageSize = 10
+      pageSize = 10,
     } = options;
 
     const total = await this.count(table, where);
@@ -354,15 +407,15 @@ class Database {
       orderBy,
       order,
       limit: pageSize,
-      offset
+      offset,
     });
 
     return {
       data,
       total,
-      page: parseInt(page),
-      pageSize: parseInt(pageSize),
-      totalPages: Math.ceil(total / pageSize)
+      page: parseInt(page, 10),
+      pageSize: parseInt(pageSize, 10),
+      totalPages: Math.ceil(total / pageSize),
     };
   }
 }
@@ -378,15 +431,19 @@ const testConnection = async () => {
     const currentPool = getPool();
     const connection = await currentPool.getConnection();
     await connection.ping();
-    console.log('✅ MySQL数据库连接成功');
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('✅ MySQL数据库连接成功');
+    }
     connection.release();
     return true;
   } catch (error) {
-    console.error('❌ MySQL数据库连接失败:', error.message);
-    console.error('请检查：');
-    console.error('1. MySQL是否已安装和启动');
-    console.error('2. 数据库配置是否正确');
-    console.error('3. 数据库是否已创建');
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('❌ MySQL数据库连接失败:', error.message);
+      console.error('请检查：');
+      console.error('1. MySQL是否已安装和启动');
+      console.error('2. 数据库配置是否正确');
+      console.error('3. 数据库是否已创建');
+    }
     return false;
   }
 };
@@ -399,9 +456,13 @@ const closePool = async () => {
     try {
       await pool.end();
       pool = null;
-      console.log('MySQL连接池已关闭');
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('MySQL连接池已关闭');
+      }
     } catch (error) {
-      console.error('关闭连接池时出错:', error);
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('关闭连接池时出错:', error);
+      }
     }
   }
 };
@@ -418,5 +479,5 @@ module.exports = {
   closePool,
   dbConfig,
   initPool,
-  getPool
+  getPool,
 };

@@ -1,137 +1,261 @@
-const { db, generateId, formatDate } = require('../config/mysql');
+/**
+ * 用户控制器
+ * 处理用户相关的HTTP请求
+ */
+
+/**
+ * @swagger
+ * tags:
+ *   name: 用户管理
+ *   description: 用户相关API
+ */
+
+const axios = require('axios');
+const crypto = require('crypto');
+const userService = require('../services/userService');
+const memberService = require('../services/memberService');
 const { generateToken } = require('../utils/jwt');
-const { hashPassword } = require('../utils/encryption');
+
+const WX_APP_ID = process.env.WX_APP_ID || 'your_wechat_app_id';
+const WX_APP_SECRET = process.env.WX_APP_SECRET || 'your_wechat_app_secret';
 
 /**
  * 手机号登录
+ * @swagger
+ * /api/user/login/phone:
+ *   post:
+ *     summary: 手机号密码登录
+ *     tags: [用户]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - phone
+ *               - code
+ *             properties:
+ *               phone:
+ *                 type: string
+ *                 description: 手机号
+ *                 example: "13800138000"
+ *               code:
+ *                 type: string
+ *                 description: 验证码
+ *                 example: "123456"
+ *               password:
+ *                 type: string
+ *                 description: 密码（可选）
+ *                 example: "123456"
+ *     responses:
+ *       200:
+ *         description: 登录成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     token:
+ *                       type: string
+ *                       example: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *                     tokenType:
+ *                       type: string
+ *                       example: "Bearer"
+ *                     expiresIn:
+ *                       type: string
+ *                       example: "7天"
+ *                     userInfo:
+ *                       type: object
+ *                 message:
+ *                   type: string
+ *                   example: "登录成功"
  */
 const phoneLogin = async (req, res) => {
   try {
-    const { phone, code } = req.body;
+    const { phone, code, password } = req.validatedData;
 
-    if (!phone || !code) {
-      return res.error('手机号和验证码不能为空', 400);
-    }
-
-    const phoneReg = /^1[3-9]\d{9}$/;
-    if (!phoneReg.test(phone)) {
-      return res.error('手机号格式不正确', 400);
-    }
-
-    if (code.length !== 6) {
-      return res.error('验证码格式不正确', 400);
-    }
-
-    const existingUser = await db.findOne('users', { phone: phone });
-    let userId = existingUser?.id;
-    let user = existingUser;
+    let user = await userService.getUserByPhone(phone);
+    let userId = user?.id;
 
     if (!user) {
-      userId = generateId();
-      user = {
+      userId = require('../config/mysql').generateId();
+      const userData = {
         id: userId,
-        phone: phone,
+        phone,
         avatar: '/images/avatar.png',
-        nickname: '用户' + phone.slice(-4),
+        nickname: `用户${phone.slice(-4)}`,
         gender: null,
         city: null,
         province: null,
         country: null,
         wechat_openid: null,
         wechat_session_key: null,
-        createdAt: formatDate(),
-        updatedAt: formatDate()
       };
+
       // 如果请求中有密码，加密后存储
-      if (req.body.password) {
-        user.password = await hashPassword(req.body.password);
+      if (password) {
+        await userService.createUser(userData, password);
+      } else {
+        await userService.createUser(userData);
       }
-      await db.insert('users', user);
-      await db.insert('members', {
-        id: generateId(),
-        user_id: userId,
-        balance: '0.00',
-        points: 0,
-        coupons: 0,
-        level: 1,
-        created_at: formatDate(),
-        updated_at: formatDate()
+
+      console.log(`自动创建会员数据: ${userId}`);
+    } else if (user.wechat_openid || user.wechat_session_key) {
+      await userService.updateUser(userId, {
+        wechat_openid: null,
+        wechat_session_key: null,
       });
-    } else {
-      if (user.wechat_openid || user.wechat_session_key) {
-        await db.update('users', {
-          wechat_openid: null,
-          wechat_session_key: null,
-          updatedAt: formatDate()
-        }, { id: userId });
-        user.wechat_openid = null;
-        user.wechat_session_key = null;
-        user.updatedAt = formatDate();
-        console.log(`用户 ${userId} 从微信登录切换为手机号登录，已清除微信字段`);
-      }
+      console.log(`用户 ${userId} 从微信登录切换为手机号登录，已清除微信字段`);
     }
 
+    user = await userService.getUserById(userId);
+
     const token = generateToken({
-      userId: userId,
-      phone: phone
+      userId,
+      phone,
     });
 
-    res.success({
-      token: token,
-      tokenType: 'Bearer',
-      expiresIn: '7天',
-      userInfo: user
-    }, '登录成功');
+    res.success(
+      {
+        token,
+        tokenType: 'Bearer',
+        expiresIn: '7天',
+        userInfo: user,
+      },
+      'COMMON.SUCCESS',
+      200,
+      req
+    );
   } catch (error) {
     console.error('手机登录错误:', error);
-    res.error('登录失败', 500, error);
+    res.error('USER.LOGIN_FAILED', 500, error, req);
   }
 };
 
-const axios = require('axios');
-const crypto = require('crypto');
-const WX_APP_ID = process.env.WX_APP_ID || 'your_wechat_app_id';
-const WX_APP_SECRET = process.env.WX_APP_SECRET || 'your_wechat_app_secret';
-
+/**
+ * @swagger
+ * /api/v1/user/login/wechat:
+ *   post:
+ *     summary: 微信登录
+ *     tags: [用户管理]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - code
+ *             properties:
+ *               code:
+ *                 type: string
+ *                 description: 微信登录临时code
+ *                 example: "011a5w0000a00000000000000000"
+ *               userInfo:
+ *                 type: object
+ *                 description: 用户信息（可选）
+ *                 properties:
+ *                   avatarUrl:
+ *                     type: string
+ *                     description: 头像URL
+ *                   nickName:
+ *                     type: string
+ *                     description: 昵称
+ *                   gender:
+ *                     type: integer
+ *                     description: 性别（1男，2女）
+ *                   city:
+ *                     type: string
+ *                     description: 城市
+ *                   province:
+ *                     type: string
+ *                     description: 省份
+ *                   country:
+ *                     type: string
+ *                     description: 国家
+ *     responses:
+ *       200:
+ *         description: 登录成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     token:
+ *                       type: string
+ *                       example: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *                     tokenType:
+ *                       type: string
+ *                       example: "Bearer"
+ *                     expiresIn:
+ *                       type: string
+ *                       example: "7天"
+ *                     userInfo:
+ *                       type: object
+ *                     sessionKey:
+ *                       type: string
+ *                       example: "session_key_value"
+ *                 message:
+ *                   type: string
+ *                   example: "登录成功"
+ *       400:
+ *         description: 微信登录失败
+ */
 const wechatLogin = async (req, res) => {
   try {
-    const { code, userInfo } = req.body;
-    console.log('[微信登录后端] 收到请求，code:', code ? '已收到' : '未收到', 'userInfo:', userInfo ? '已收到' : '未收到');
-
-    if (!code) {
-      return res.error('缺少微信登录code', 400);
-    }
-
-    console.log('调用微信接口:', { appid: WX_APP_ID, code: code });
-    const wxResponse = await axios.get(`https://api.weixin.qq.com/sns/jscode2session`, {
-      params: {
-        appid: WX_APP_ID,
-        secret: WX_APP_SECRET,
-        js_code: code,
-        grant_type: 'authorization_code'
+    const { code, userInfo } = req.validatedData;
+    const wxResponse = await axios.get(
+      `https://api.weixin.qq.com/sns/jscode2session`,
+      {
+        params: {
+          appid: WX_APP_ID,
+          secret: WX_APP_SECRET,
+          js_code: code,
+          grant_type: 'authorization_code',
+        },
       }
-    });
+    );
 
     const { openid, session_key, errcode, errmsg } = wxResponse.data;
 
     if (errcode) {
       console.error('微信登录接口错误:', errmsg);
-      return res.error(`微信登录失败: ${errmsg}`, 400);
+      return res.error('USER.WECHAT_LOGIN_FAILED', 400, new Error(errmsg), req);
     }
 
     if (!openid || !session_key) {
-      return res.error('无法获取微信用户信息', 400);
+      return res.error('USER.WECHAT_LOGIN_FAILED', 400, null, req);
     }
 
-    const userId = 'wx_' + openid;
-    const existingUser = await db.findOne('users', { id: userId });
+    let existingUser = await userService.getUserByWechatOpenId(openid);
 
     if (existingUser) {
       const updateData = {};
-      if (userInfo && userInfo.avatarUrl && userInfo.avatarUrl !== existingUser.avatar) {
+      if (
+        userInfo &&
+        userInfo.avatarUrl &&
+        userInfo.avatarUrl !== existingUser.avatar
+      ) {
         updateData.avatar = userInfo.avatarUrl;
       }
-      if (userInfo && userInfo.nickName && userInfo.nickName !== existingUser.nickname) {
+      if (
+        userInfo &&
+        userInfo.nickName &&
+        userInfo.nickName !== existingUser.nickname
+      ) {
         updateData.nickname = userInfo.nickName;
       }
       if (userInfo && userInfo.gender !== undefined) {
@@ -146,35 +270,40 @@ const wechatLogin = async (req, res) => {
       if (userInfo && userInfo.country) {
         updateData.country = userInfo.country;
       }
+
       if (Object.keys(updateData).length > 0) {
-        updateData.updatedAt = formatDate();
-        await db.update('users', updateData, { id: userId });
-        Object.assign(existingUser, updateData);
+        await userService.updateUser(existingUser.id, updateData);
+        existingUser = { ...existingUser, ...updateData };
       }
 
-      await db.update('users', {
+      await userService.updateUser(existingUser.id, {
         wechat_session_key: session_key,
         wechat_openid: openid,
-        updatedAt: formatDate()
-      }, { id: userId });
-
-      const token = generateToken({
-        userId: userId,
-        phone: existingUser.phone,
-        openid: openid
       });
 
-      res.success({
-        token: token,
-        tokenType: 'Bearer',
-        expiresIn: '7天',
-        userInfo: existingUser,
-        sessionKey: session_key
-      }, '登录成功');
+      const token = generateToken({
+        userId: existingUser.id,
+        phone: existingUser.phone,
+        openid,
+      });
+
+      res.success(
+        {
+          token,
+          tokenType: 'Bearer',
+          expiresIn: '7天',
+          userInfo: existingUser,
+          sessionKey: session_key,
+        },
+        'COMMON.SUCCESS',
+        200,
+        req
+      );
       return;
     }
 
-    const user = {
+    const userId = require('../config/mysql').generateId();
+    const userData = {
       id: userId,
       phone: null,
       avatar: userInfo?.avatarUrl || '/images/avatar.png',
@@ -185,76 +314,220 @@ const wechatLogin = async (req, res) => {
       country: userInfo?.country || null,
       wechat_openid: openid,
       wechat_session_key: session_key,
-      createdAt: formatDate(),
-      updatedAt: formatDate()
     };
 
-    await db.insert('users', user);
-    await db.insert('members', {
-      id: generateId(),
-      user_id: userId,
-      balance: '0.00',
-      points: 0,
-      coupons: 0,
-      level: 1,
-      created_at: formatDate(),
-      updated_at: formatDate()
-    });
+    await userService.createUser(userData);
+
+    const user = await userService.getUserById(userId);
 
     const token = generateToken({
-      userId: userId,
+      userId,
       phone: null,
-      openid: openid
+      openid,
     });
 
-    res.success({
-      token: token,
-      tokenType: 'Bearer',
-      expiresIn: '7天',
-      userInfo: user,
-      sessionKey: session_key
-    }, '登录成功');
+    res.success(
+      {
+        token,
+        tokenType: 'Bearer',
+        expiresIn: '7天',
+        userInfo: user,
+        sessionKey: session_key,
+      },
+      'COMMON.SUCCESS',
+      200,
+      req
+    );
   } catch (error) {
     console.error('微信登录错误:', error);
-    res.error('登录失败', 500, error);
+    res.error('USER.WECHAT_LOGIN_FAILED', 500, error, req);
   }
 };
 
+/**
+ * @swagger
+ * /api/v1/user/info:
+ *   get:
+ *     summary: 获取用户信息
+ *     tags: [用户管理]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: userId
+ *         type: string
+ *         required: true
+ *         description: 用户ID
+ *     responses:
+ *       200:
+ *         description: 获取用户信息成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       example: "wx_openid123456"
+ *                     phone:
+ *                       type: string
+ *                       example: "13800138000"
+ *                     avatar:
+ *                       type: string
+ *                       example: "/images/avatar.png"
+ *                     nickname:
+ *                       type: string
+ *                       example: "微信用户"
+ *                     gender:
+ *                       type: string
+ *                       example: "male"
+ *                     city:
+ *                       type: string
+ *                       example: "北京"
+ *                     province:
+ *                       type: string
+ *                       example: "北京"
+ *                     country:
+ *                       type: string
+ *                       example: "中国"
+ *                     wechat_openid:
+ *                       type: string
+ *                       example: "openid123456"
+ *                     wechat_session_key:
+ *                       type: string
+ *                       example: "session_key_value"
+ *                     create_time:
+ *                       type: string
+ *                       format: date-time
+ *                     update_time:
+ *                       type: string
+ *                       format: date-time
+ *                 message:
+ *                   type: string
+ *                   example: "获取成功"
+ *       400:
+ *         description: 请求参数错误
+ *       401:
+ *         description: 未授权
+ *       404:
+ *         description: 用户不存在
+ *       500:
+ *         description: 服务器内部错误
+ */
 const getUserInfo = async (req, res) => {
   try {
     const { userId } = req.query;
 
     if (!userId) {
-      return res.error('缺少用户ID', 400);
+      return res.error('COMMON.BAD_REQUEST', 400, null, req);
     }
 
-    const user = await db.findOne('users', { id: userId });
+    const user = await userService.getUserById(userId);
 
     if (!user) {
-      return res.error('用户不存在', 404);
+      return res.error('USER.USER_NOT_EXIST', 404, null, req);
     }
 
-    res.success(user);
+    res.success(user, 'COMMON.SUCCESS', 200, req);
   } catch (error) {
     console.error('获取用户信息错误:', error);
-    res.error('获取用户信息失败', 500, error);
+    res.error('COMMON.INTERNAL_ERROR', 500, error, req);
   }
 };
 
+/**
+ * @swagger
+ * /api/v1/user/update:
+ *   post:
+ *     summary: 更新用户信息
+ *     tags: [用户管理]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - userId
+ *             properties:
+ *               userId:
+ *                 type: string
+ *                 description: 用户ID
+ *                 example: "wx_openid123456"
+ *               avatar:
+ *                 type: string
+ *                 description: 头像URL
+ *                 example: "/images/avatar.png"
+ *               nickname:
+ *                 type: string
+ *                 description: 昵称
+ *                 example: "微信用户"
+ *               gender:
+ *                 type: string
+ *                 description: 性别（male/female）
+ *                 example: "male"
+ *               birthday:
+ *                 type: string
+ *                 format: date
+ *                 description: 生日
+ *                 example: "1990-01-01"
+ *               city:
+ *                 type: string
+ *                 description: 城市
+ *                 example: "北京"
+ *               province:
+ *                 type: string
+ *                 description: 省份
+ *                 example: "北京"
+ *               country:
+ *                 type: string
+ *                 description: 国家
+ *                 example: "中国"
+ *     responses:
+ *       200:
+ *         description: 更新用户信息成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                 message:
+ *                   type: string
+ *                   example: "更新成功"
+ *       400:
+ *         description: 请求参数错误
+ *       401:
+ *         description: 未授权
+ *       500:
+ *         description: 服务器内部错误
+ */
 const updateUserInfo = async (req, res) => {
   try {
     const { userId } = req.body;
     const updateData = req.body;
 
     if (!userId) {
-      return res.error('缺少用户ID', 400);
+      return res.error('COMMON.BAD_REQUEST', 400, null, req);
     }
 
-    let user = await db.findOne('users', { id: userId });
+    let user = await userService.getUserById(userId);
 
     if (!user) {
       console.log(`用户 ${userId} 不存在，自动创建用户`);
-      user = {
+      await userService.createUser({
         id: userId,
         phone: updateData.phone || null,
         avatar: updateData.avatar || '/images/avatar.png',
@@ -264,66 +537,96 @@ const updateUserInfo = async (req, res) => {
         city: updateData.city || null,
         province: updateData.province || null,
         country: updateData.country || null,
-        createdAt: formatDate(),
-        updatedAt: formatDate()
-      };
-      await db.insert('users', user);
-      const existingMember = await db.findOne('members', { user_id: userId });
-      if (!existingMember) {
-        await db.insert('members', {
-          id: generateId(),
-          user_id: userId,
-          balance: '0.00',
-          points: 0,
-          coupons: 0,
-          level: 1,
-          created_at: formatDate(),
-          updated_at: formatDate()
-        });
-      }
+      });
+
+      user = await userService.getUserById(userId);
       console.log(`用户 ${userId} 创建成功`);
     }
 
-    const { id: _, createdAt: __, ...updatableData } = updateData;
-    const updatedData = {
-      ...updatableData,
-      updatedAt: formatDate()
-    };
+    const updatedUser = await userService.updateUser(userId, updateData);
 
-    await db.update('users', updatedData, { id: userId });
-
-    const updatedUser = {
-      ...user,
-      ...updatedData
-    };
-
-    res.success(updatedUser, '更新成功');
+    res.success(updatedUser, 'COMMON.SUCCESS', 200, req);
   } catch (error) {
     console.error('更新用户信息错误:', error);
-    res.error('更新用户信息失败', 500, error);
+    res.error('COMMON.INTERNAL_ERROR', 500, error, req);
   }
 };
 
+/**
+ * @swagger
+ * /api/v1/user/avatar/upload:
+ *   post:
+ *     summary: 上传头像
+ *     tags: [用户管理]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - userId
+ *               - avatar
+ *             properties:
+ *               userId:
+ *                 type: string
+ *                 description: 用户ID
+ *                 example: "wx_openid123456"
+ *               avatar:
+ *                 type: string
+ *                 description: 头像base64数据
+ *                 example: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..."
+ *     responses:
+ *       200:
+ *         description: 上传头像成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     avatar:
+ *                       type: string
+ *                       example: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..."
+ *                 message:
+ *                   type: string
+ *                   example: "上传成功"
+ *       400:
+ *         description: 请求参数错误或头像格式不正确
+ *       401:
+ *         description: 未授权
+ *       404:
+ *         description: 用户不存在
+ *       500:
+ *         description: 服务器内部错误
+ */
 const uploadAvatar = async (req, res) => {
   try {
     const { userId, avatar } = req.body;
 
     if (!userId) {
-      return res.error('缺少用户ID', 400);
+      return res.error('COMMON.BAD_REQUEST', 400, null, req);
     }
 
     if (!avatar) {
-      return res.error('缺少头像数据', 400);
+      return res.error('COMMON.BAD_REQUEST', 400, null, req);
     }
 
     if (!avatar.startsWith('data:image/')) {
-      return res.error('头像格式不正确，需要Base64格式的图片', 400);
+      return res.error('COMMON.VALIDATE_FAILED', 400, null, req);
     }
 
-    let user = await db.findOne('users', { id: userId });
+    const user = await userService.getUserById(userId);
 
     if (!user) {
-      return res.error('用户不存在', 404);
+      return res.error('USER.USER_NOT_EXIST', 404, null, req);
     }
 
     const base64Length = avatar.length;
@@ -331,66 +634,114 @@ const uploadAvatar = async (req, res) => {
     const sizeInMB = sizeInBytes / (1024 * 1024);
 
     if (sizeInMB > 2) {
-      return res.error('头像大小不能超过2MB', 400);
+      return res.error('COMMON.VALIDATE_FAILED', 400, null, req);
     }
 
-    await db.update('users', {
-      avatar: avatar,
-      updatedAt: formatDate()
-    }, { id: userId });
+    await userService.updateUser(userId, {
+      avatar,
+    });
 
     user.avatar = avatar;
-    user.updatedAt = formatDate();
 
     console.log(`用户 ${userId} 的头像已更新`);
 
-    res.success({ avatar: avatar }, '头像上传成功');
+    res.success({ avatar }, 'COMMON.SUCCESS', 200, req);
   } catch (error) {
     console.error('上传头像错误:', error);
-    res.error('上传头像失败', 500, error);
+    res.error('COMMON.INTERNAL_ERROR', 500, error, req);
   }
 };
 
+/**
+ * @swagger
+ * /api/v1/user/phone/decrypt:
+ *   post:
+ *     summary: 解密微信手机号
+ *     tags: [用户管理]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - encryptedData
+ *               - iv
+ *             properties:
+ *               encryptedData:
+ *                 type: string
+ *                 description: 加密数据
+ *                 example: "encrypted_data_string"
+ *               iv:
+ *                 type: string
+ *                 description: 加密算法的初始向量
+ *                 example: "iv_string"
+ *     responses:
+ *       200:
+ *         description: 解密成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     phoneNumber:
+ *                       type: string
+ *                       example: "13800138000"
+ *                     purePhoneNumber:
+ *                       type: string
+ *                       example: "13800138000"
+ *                     countryCode:
+ *                       type: string
+ *                       example: "86"
+ *                 message:
+ *                   type: string
+ *                   example: "解密成功"
+ *       400:
+ *         description: 请求参数错误或会话密钥不存在
+ *       401:
+ *         description: 未授权
+ *       404:
+ *         description: 用户不存在
+ *       500:
+ *         description: 服务器内部错误
+ */
 const decryptWechatPhone = async (req, res) => {
   try {
     const { encryptedData, iv } = req.body;
     const userId = req.user.id;
 
     if (!encryptedData || !iv) {
-      return res.status(400).json({
-        success: false,
-        message: '缺少必要的解密参数'
-      });
+      return res.error('COMMON.BAD_REQUEST', 400, null, req);
     }
 
-    const user = await db.findOne('users', { id: userId });
+    const user = await userService.getUserById(userId);
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: '用户不存在'
-      });
+      return res.error('USER.USER_NOT_EXIST', 404, null, req);
     }
 
     if (!user.wechat_session_key) {
-      return res.status(400).json({
-        success: false,
-        message: '请先通过微信登录'
-      });
+      return res.error('COMMON.BAD_REQUEST', 400, null, req);
     }
 
     console.log(`[微信手机号] 用户 ${userId} 尝试解密，开发环境返回特殊错误码`);
 
-    return res.status(400).json({
-      success: false,
-      message: '开发环境暂不支持微信手机号解密，请使用验证码绑定手机号',
-      code: 'DEV_ENV_NO_REAL_SESSION_KEY'
-    });
+    return res.error(
+      'COMMON.BAD_REQUEST',
+      400,
+      new Error('开发环境暂不支持微信手机号解密，请使用验证码绑定手机号'),
+      req
+    );
   } catch (error) {
     console.error('获取微信手机号错误:', error);
-    res.status(500).json({
-      success: false,
-      message: '获取手机号失败'
-    });
+    res.error('COMMON.INTERNAL_ERROR', 500, error, req);
   }
 };
 
@@ -400,5 +751,5 @@ module.exports = {
   getUserInfo,
   updateUserInfo,
   uploadAvatar,
-  decryptWechatPhone
+  decryptWechatPhone,
 };

@@ -24,15 +24,17 @@ const securityMiddleware = (app) => {
   app.disable('x-powered-by');
 
   // 设置CSP（内容安全策略）
-  app.use(helmet.contentSecurityPolicy({
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", 'data:', 'https:'],
-      connectSrc: ["'self'", 'https:']
-    }
-  }));
+  app.use(
+    helmet.contentSecurityPolicy({
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'data:', 'https:'],
+        connectSrc: ["'self'", 'https:'],
+      },
+    })
+  );
 
   // 设置X-Frame-Options，防止点击劫持
   app.use(helmet.frameguard({ action: 'deny' }));

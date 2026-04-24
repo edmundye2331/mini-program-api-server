@@ -1,187 +1,308 @@
-const { db, generateId, formatDate } = require('../config/mysql.js');
+/**
+ * 生日礼控制器
+ * 处理生日礼相关API
+ */
+
+const birthdayService = require('../services/birthdayService');
+const userService = require('../services/userService');
 
 /**
- * 获取生日礼信息
+ * @swagger
+ * tags:
+ *   name: 生日礼管理
+ *   description: 生日礼相关API
+ */
+
+/**
+ * @swagger
+ * /api/v1/birthday/gift:
+ *   get:
+ *     summary: 获取生日礼信息
+ *     tags: [生日礼管理]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: userId
+ *         type: string
+ *         required: true
+ *         description: 用户ID
+ *     responses:
+ *       200:
+ *         description: 获取生日礼信息成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     available:
+ *                       type: boolean
+ *                       description: 是否可以领取
+ *                       example: true
+ *                     giftName:
+ *                       type: string
+ *                       description: 礼物名称
+ *                       example: "生日专属优惠券"
+ *                     giftDescription:
+ *                       type: string
+ *                       description: 礼物描述
+ *                       example: "满200减50优惠券"
+ *                     giftType:
+ *                       type: string
+ *                       description: 礼物类型
+ *                       example: "coupon"
+ *                     points:
+ *                       type: number
+ *                       description: 积分值
+ *                       example: 100
+ *                     giftValue:
+ *                       type: number
+ *                       description: 礼物价值
+ *                       example: 50
+ *                     expireDate:
+ *                       type: string
+ *                       format: date
+ *                       example: "2026-04-30"
+ *                 message:
+ *                   type: string
+ *                   example: "获取成功"
+ *       400:
+ *         description: 请求参数错误
+ *       401:
+ *         description: 未授权
+ *       404:
+ *         description: 用户不存在
+ *       500:
+ *         description: 服务器内部错误
  */
 exports.getBirthdayGift = async (req, res) => {
   try {
-    const { userId } = req.query;
-
-    if (!userId) {
-      return res.error('缺少用户ID', 400);
-    }
+    const { userId } = req.validatedData;
 
     // 查找用户
-    const user = await db.findOne('users', { id: userId });
-
+    const user = await userService.getUserById(userId);
     if (!user) {
-      return res.error('用户不存在', 404);
+      return res.error('USER.USER_NOT_EXIST', 404, null, req);
     }
 
-    // 查找用户的生日礼记录
-    let birthdayGift = await db.findOne('birthday_gifts', { user_id: userId });
+    const { canClaim, gift, reason } =
+      await birthdayService.checkBirthdayGift(userId);
 
-    // 如果没有记录，创建默认记录
-    if (!birthdayGift) {
-      const currentYear = new Date().getFullYear();
-      const giftData = {
-        id: generateId(),
-        user_id: userId,
-        year: currentYear,
-        is_claimed: 0,
-        gift_name: '生日特饮',
-        gift_description: '精美鸡尾酒一杯，价值68元',
-        gift_value: 68,
-        gift_image: '/images/cake.png',
-        gift_type: 'points',
-        created_at: formatDate()
-      };
-      const result = await db.insert('birthday_gifts', giftData);
-      birthdayGift = {
-        id: giftData.id,
-        user_id: userId,
-        year: currentYear,
-        is_claimed: 0,
-        gift_name: '生日特饮',
-        gift_description: '精美鸡尾酒一杯，价值68元',
-        gift_value: 68,
-        gift_image: '/images/cake.png',
-        gift_type: 'points',
-        created_at: formatDate()
-      };
-    } else {
-      birthdayGift.gift = {
-        name: birthdayGift.gift_name,
-        description: birthdayGift.gift_description,
-        value: birthdayGift.gift_value,
-        image: birthdayGift.gift_image
-      };
-    }
-
-    // 检查是否已领取
-    const data = {
-      canClaim: !birthdayGift.is_claimed,
-      isClaimed: birthdayGift.is_claimed,
-      gift: birthdayGift.gift,
-      claimedAt: birthdayGift.claimed_at || null
+    // 格式化返回数据
+    const responseData = {
+      available: canClaim,
+      giftName: gift?.gift_name || '',
+      giftDescription: gift?.gift_description || '',
+      giftType: gift?.gift_type || '',
+      points: gift?.points || 0,
+      giftValue: gift?.gift_value || 0,
+      expireDate: gift?.expires_at
+        ? new Date(gift.expires_at).toISOString().split('T')[0]
+        : '',
     };
 
-    res.success(data, '获取生日礼成功');
+    // 如果不能领取，返回原因
+    if (!canClaim) {
+      responseData.reason = reason;
+    }
+
+    res.success(responseData, 'COMMON.SUCCESS', 200, req);
   } catch (error) {
-    res.error('获取生日礼失败', 500, error);
+    console.error('获取生日礼错误:', error);
+    res.error('COMMON.INTERNAL_ERROR', 500, error, req);
   }
 };
 
 /**
- * 领取生日礼
+ * @swagger
+ * /api/v1/birthday/gift/claim:
+ *   post:
+ *     summary: 领取生日礼
+ *     tags: [生日礼管理]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - userId
+ *             properties:
+ *               userId:
+ *                 type: string
+ *                 description: 用户ID
+ *                 example: "wx_openid123456"
+ *     responses:
+ *       200:
+ *         description: 生日礼领取成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     giftName:
+ *                       type: string
+ *                       example: "生日专属优惠券"
+ *                     giftType:
+ *                       type: string
+ *                       example: "coupon"
+ *                     points:
+ *                       type: number
+ *                       example: 100
+ *                     claimTime:
+ *                       type: string
+ *                       format: date-time
+ *                       example: "2026-04-01T00:00:00Z"
+ *                 message:
+ *                   type: string
+ *                   example: "生日礼领取成功"
+ *       400:
+ *         description: 请求参数错误或生日礼不可领取
+ *       401:
+ *         description: 未授权
+ *       404:
+ *         description: 用户不存在
+ *       500:
+ *         description: 服务器内部错误
  */
 exports.claimBirthdayGift = async (req, res) => {
   try {
     const { userId } = req.body;
-
     if (!userId) {
-      return res.error('缺少用户ID', 400);
+      return res.error('COMMON.BAD_REQUEST', 400, null, req);
     }
-
-    // 查找用户
-    const user = await db.findOne('users', { id: userId });
-
-    if (!user) {
-      return res.error('用户不存在', 404);
-    }
-
-    // 查找用户的生日礼记录
-    const birthdayGift = await db.findOne('birthday_gifts', { user_id: userId });
-
-    if (!birthdayGift) {
-      return res.error('生日礼不存在', 404);
-    }
-
-    // 检查是否已领取
-    if (birthdayGift.is_claimed) {
-      return res.error('生日礼已领取', 400);
-    }
-
-    // 获取当前会员积分
-    const member = await db.findOne('members', { user_id: userId });
-    const giftValue = parseInt(birthdayGift.gift_value);
-    const newPoints = (member.points || 0) + giftValue;
 
     // 领取生日礼
-    await db.update('birthday_gifts', {
-      is_claimed: 1,
-      claimed_at: formatDate()
-    }, { user_id: userId });
+    const result = await birthdayService.claimBirthdayGift(userId);
 
-    // 创建积分记录
-    const pointsRecord = {
-      id: generateId(),
-      user_id: userId,
-      type: 'birthday',
-      amount: giftValue,
-      balance: newPoints,
-      description: `生日礼：${birthdayGift.gift_name}`,
-      created_at: formatDate()
+    // 格式化返回数据
+    const responseData = {
+      giftName: result.gift_name,
+      giftType: result.gift_type,
+      points: result.points || 0,
+      claimTime: result.claimed_at,
     };
-    await db.insert('points_records', pointsRecord);
 
-    // 更新会员积分
-    await db.update('members', {
-      points: newPoints
-    }, { user_id: userId });
-
-    res.success({
-      gift: {
-        name: birthdayGift.gift_name,
-        description: birthdayGift.gift_description,
-        value: birthdayGift.gift_value,
-        image: birthdayGift.gift_image
-      },
-      claimedAt: formatDate()
-    }, '生日礼领取成功');
+    res.success(responseData, 'COMMON.SUCCESS', 200, req);
   } catch (error) {
-    res.error('领取生日礼失败', 500, error);
+    console.error('领取生日礼错误:', error);
+    res.error('COMMON.INTERNAL_ERROR', 500, error, req);
   }
 };
 
 /**
- * 获取生日礼领取记录
+ * @swagger
+ * /api/v1/birthday/gift/records:
+ *   get:
+ *     summary: 获取生日礼领取记录
+ *     tags: [生日礼管理]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: userId
+ *         type: string
+ *         required: true
+ *         description: 用户ID
+ *     responses:
+ *       200:
+ *         description: 获取生日礼领取记录成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         example: "record123456"
+ *                       user_id:
+ *                         type: string
+ *                         example: "wx_openid123456"
+ *                       gift_name:
+ *                         type: string
+ *                         example: "生日专属优惠券"
+ *                       gift_type:
+ *                         type: string
+ *                         example: "coupon"
+ *                       points:
+ *                         type: integer
+ *                         example: 100
+ *                       is_claimed:
+ *                         type: boolean
+ *                         example: true
+ *                       claimed_at:
+ *                         type: string
+ *                         format: date-time
+ *                         example: "2026-04-01T00:00:00Z"
+ *                 message:
+ *                   type: string
+ *                   example: "获取成功"
+ *                 total:
+ *                   type: integer
+ *                   example: 5
+ *       400:
+ *         description: 请求参数错误
+ *       401:
+ *         description: 未授权
+ *       500:
+ *         description: 服务器内部错误
  */
 exports.getBirthdayGiftRecords = async (req, res) => {
   try {
-    const { userId } = req.query;
+    const { userId } = req.validatedData;
 
-    if (!userId) {
-      return res.error('缺少用户ID', 400);
+    // 查找用户
+    const user = await userService.getUserById(userId);
+    if (!user) {
+      return res.error('USER.USER_NOT_EXIST', 404, null, req);
     }
 
-    // 获取该用户的生日礼记录
-    const birthdayGift = await db.findOne('birthday_gifts', { user_id: userId });
+    const records = await birthdayService.getUserBirthdayGifts(userId);
 
-    if (!birthdayGift) {
-      return res.success({
-        records: []
-      }, '暂无生日礼记录');
-    }
-
-    // 获取相关的积分记录
-    const pointsRecords = await db.findMany('points_records', {
-      user_id: userId,
-      type: 'birthday'
-    });
-
-    const records = pointsRecords.map(record => ({
+    // 格式化返回数据
+    const formattedRecords = records.map((record) => ({
       id: record.id,
-      giftName: record.description.replace('生日礼：', ''),
-      value: record.amount,
-      claimedAt: record.created_at
+      user_id: record.user_id,
+      gift_name: record.gift_name,
+      gift_type: record.gift_type,
+      points: record.points || 0,
+      is_claimed: record.is_claimed,
+      claimed_at: record.claimed_at,
     }));
 
-    res.success({
-      records,
-      total: records.length
-    }, '获取生日礼记录成功');
+    res.success(
+      {
+        records: formattedRecords,
+        total: formattedRecords.length,
+      },
+      'COMMON.SUCCESS',
+      200,
+      req
+    );
   } catch (error) {
-    res.error('获取生日礼记录失败', 500, error);
+    console.error('获取生日礼记录错误:', error);
+    res.error('COMMON.INTERNAL_ERROR', 500, error, req);
   }
 };

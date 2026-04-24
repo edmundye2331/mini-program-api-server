@@ -10,12 +10,12 @@
 
 ### 基本信息
 
-| 项目 | 状态 | 详情 |
-|------|------|------|
+| 项目           | 状态      | 详情                  |
+| -------------- | --------- | --------------------- |
 | **服务器状态** | ✅ 运行中 | http://localhost:3000 |
-| **端口** | ✅ 正常 | 3000 |
-| **环境** | ✅ 正常 | development |
-| **版本** | ✅ 正常 | 1.0.0 |
+| **端口**       | ✅ 正常   | 3000                  |
+| **环境**       | ✅ 正常   | development           |
+| **版本**       | ✅ 正常   | 1.0.0                 |
 
 ### 检查结果
 
@@ -51,7 +51,7 @@ $ curl http://localhost:3000
 // 登录成功后生成JWT token
 const token = generateToken({
   userId: userId,
-  phone: phone
+  phone: phone,
 });
 
 // 返回给前端
@@ -59,11 +59,11 @@ res.json({
   success: true,
   message: '登录成功',
   data: {
-    token: token,          // JWT token
-    tokenType: 'Bearer',   // 类型
-    expiresIn: '7天',      // 有效期
-    userInfo: user
-  }
+    token: token, // JWT token
+    tokenType: 'Bearer', // 类型
+    expiresIn: '7天', // 有效期
+    userInfo: user,
+  },
 });
 ```
 
@@ -80,7 +80,7 @@ const authMiddleware = (req, res, next) => {
     return res.status(401).json({
       success: false,
       message: '未提供认证令牌',
-      code: 'NO_TOKEN'
+      code: 'NO_TOKEN',
     });
   }
 
@@ -93,7 +93,7 @@ const authMiddleware = (req, res, next) => {
   if (!verification.success) {
     return res.status(401).json({
       success: false,
-      message: '令牌无效或已过期'
+      message: '令牌无效或已过期',
     });
   }
 
@@ -101,7 +101,7 @@ const authMiddleware = (req, res, next) => {
   req.user = {
     id: userId,
     phone: phone,
-    ...user
+    ...user,
   };
 
   next();
@@ -113,7 +113,8 @@ const authMiddleware = (req, res, next) => {
 **文件**: `utils/jwt.js`
 
 ```javascript
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const JWT_SECRET =
+  process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 
 // 生成token
@@ -121,12 +122,12 @@ const generateToken = (payload) => {
   return jwt.sign(
     {
       userId: payload.userId,
-      phone: payload.phone
+      phone: payload.phone,
     },
     JWT_SECRET,
     {
       expiresIn: JWT_EXPIRES_IN,
-      issuer: 'miniprogram-api'
+      issuer: 'miniprogram-api',
     }
   );
 };
@@ -137,12 +138,12 @@ const verifyToken = (token) => {
     const decoded = jwt.verify(token, JWT_SECRET);
     return {
       success: true,
-      data: decoded
+      data: decoded,
     };
   } catch (error) {
     return {
       success: false,
-      error: error.message
+      error: error.message,
     };
   }
 };
@@ -178,11 +179,15 @@ const orderController = require('../controllers/orderController');
 
 // 所有订单路由都需要认证 ✅
 router.post('/create', authMiddleware, orderController.createOrder);
-router.get('/list', authMiddleware, orderController.getOrderList);     // 前端调用这个
+router.get('/list', authMiddleware, orderController.getOrderList); // 前端调用这个
 router.get('/detail/:orderId', authMiddleware, orderController.getOrderDetail);
 router.post('/cancel/:orderId', authMiddleware, orderController.cancelOrder);
 router.post('/pay/:orderId', authMiddleware, orderController.payOrder);
-router.put('/status/:orderId', authMiddleware, orderController.updateOrderStatus);
+router.put(
+  '/status/:orderId',
+  authMiddleware,
+  orderController.updateOrderStatus
+);
 ```
 
 ### 2. 用户路由 (✅ 正确)
@@ -197,7 +202,11 @@ router.post('/login/wechat', userController.wechatLogin);
 // 获取和更新用户信息需要认证 ✅
 router.get('/info', authMiddleware, userController.getUserInfo);
 router.post('/update', authMiddleware, userController.updateUserInfo);
-router.post('/phone/decrypt', authMiddleware, userController.decryptWechatPhone);
+router.post(
+  '/phone/decrypt',
+  authMiddleware,
+  userController.decryptWechatPhone
+);
 ```
 
 ---
@@ -217,17 +226,18 @@ const getOrderList = (req, res) => {
     if (!userId) {
       return res.status(400).json({
         success: false,
-        message: '缺少用户ID'
+        message: '缺少用户ID',
       });
     }
 
     // 过滤用户的订单
-    let orders = Array.from(database.orders.values())
-      .filter(o => o.userId === userId);
+    let orders = Array.from(database.orders.values()).filter(
+      (o) => o.userId === userId
+    );
 
     // 按订单类型过滤
     if (orderType) {
-      orders = orders.filter(o => o.orderType === orderType);
+      orders = orders.filter((o) => o.orderType === orderType);
     }
 
     // 按创建时间倒序排序
@@ -244,14 +254,14 @@ const getOrderList = (req, res) => {
         list: paginatedOrders,
         total: orders.length,
         page: parseInt(page),
-        limit: parseInt(limit)
-      }
+        limit: parseInt(limit),
+      },
     });
   } catch (error) {
     console.error('获取订单列表错误:', error);
     res.status(500).json({
       success: false,
-      message: '获取订单列表失败'
+      message: '获取订单列表失败',
     });
   }
 };
@@ -268,21 +278,21 @@ const getOrderList = (req, res) => {
 ```javascript
 // 使用内存数据库 (Map)
 const database = {
-  users: new Map(),      // 用户数据
-  members: new Map(),    // 会员数据
-  orders: new Map(),     // 订单数据
+  users: new Map(), // 用户数据
+  members: new Map(), // 会员数据
+  orders: new Map(), // 订单数据
   // ...
 };
 ```
 
 ### 特点
 
-| 特点 | 说明 |
-|------|------|
-| **类型** | 内存存储 (Map) |
-| **持久化** | ❌ 服务器重启后数据丢失 |
-| **适用场景** | 开发/测试环境 |
-| **生产环境** | 需要使用MySQL等数据库 |
+| 特点         | 说明                    |
+| ------------ | ----------------------- |
+| **类型**     | 内存存储 (Map)          |
+| **持久化**   | ❌ 服务器重启后数据丢失 |
+| **适用场景** | 开发/测试环境           |
+| **生产环境** | 需要使用MySQL等数据库   |
 
 ---
 
@@ -309,10 +319,12 @@ JWT_SECRET=your-super-secret-jwt-key-change-this-in-production-min-32-chars
 **问题**: 使用内存存储，服务器重启后数据丢失
 
 **影响**:
+
 - 每次重启服务器，用户、订单等数据都会丢失
 - 前端保存的token对应的用户数据可能不存在
 
 **解决方案** (生产环境):
+
 1. 配置MySQL数据库
 2. 修改 `config/database.js` 使用真实数据库
 
@@ -357,7 +369,7 @@ if (!authHeader) {
   return res.status(401).json({
     success: false,
     message: '未提供认证令牌',
-    code: 'NO_TOKEN'
+    code: 'NO_TOKEN',
   });
 }
 
@@ -365,7 +377,7 @@ if (!authHeader) {
 if (!verification.success) {
   return res.status(401).json({
     success: false,
-    message: '令牌无效或已过期'
+    message: '令牌无效或已过期',
   });
 }
 ```
@@ -387,7 +399,12 @@ if (!verification.success) {
 ```javascript
 // ✅ 正确
 const getOrderList = (userId, orderType, page = 1, limit = 20) => {
-  return request('/order/list', { userId, orderType, page, limit }, 'GET', true);
+  return request(
+    '/order/list',
+    { userId, orderType, page, limit },
+    'GET',
+    true
+  );
   //                                                                        ↑
   //                                                              必须设置为true
 };
@@ -400,7 +417,7 @@ const getOrderList = (userId, orderType, page = 1, limit = 20) => {
 if (needAuth) {
   const token = storage.getSecureItem(Auth.KEYS.TOKEN);
   if (token) {
-    header['Authorization'] = `Bearer ${token}`;  // ✅ 正确格式
+    header['Authorization'] = `Bearer ${token}`; // ✅ 正确格式
   }
 }
 ```
@@ -485,15 +502,15 @@ curl http://localhost:3000/api/order/list?userId=xxx
 
 ### package.json 依赖
 
-| 依赖包 | 版本 | 状态 | 用途 |
-|--------|------|------|------|
-| **express** | ^4.18.2 | ✅ | Web服务器框架 |
-| **cors** | ^2.8.5 | ✅ | 跨域支持 |
-| **jsonwebtoken** | ^9.0.0 | ✅ | JWT生成和验证 |
-| **body-parser** | ^1.20.2 | ✅ | 请求体解析 |
-| **bcryptjs** | ^2.4.3 | ✅ | 密码加密 |
-| **mysql2** | ^3.20.0 | ✅ | MySQL驱动 |
-| **uuid** | ^9.0.0 | ✅ | 生成唯一ID |
+| 依赖包           | 版本    | 状态 | 用途          |
+| ---------------- | ------- | ---- | ------------- |
+| **express**      | ^4.18.2 | ✅   | Web服务器框架 |
+| **cors**         | ^2.8.5  | ✅   | 跨域支持      |
+| **jsonwebtoken** | ^9.0.0  | ✅   | JWT生成和验证 |
+| **body-parser**  | ^1.20.2 | ✅   | 请求体解析    |
+| **bcryptjs**     | ^2.4.3  | ✅   | 密码加密      |
+| **mysql2**       | ^3.20.0 | ✅   | MySQL驱动     |
+| **uuid**         | ^9.0.0  | ✅   | 生成唯一ID    |
 
 ---
 
@@ -501,22 +518,22 @@ curl http://localhost:3000/api/order/list?userId=xxx
 
 ### 后端服务器状态
 
-| 检查项 | 状态 | 说明 |
-|--------|------|------|
+| 检查项         | 状态    | 说明                  |
+| -------------- | ------- | --------------------- |
 | **服务器运行** | ✅ 正常 | http://localhost:3000 |
-| **JWT认证** | ✅ 正常 | Token生成和验证正确 |
-| **路由配置** | ✅ 正常 | 所有路由正确配置 |
-| **控制器** | ✅ 正常 | 业务逻辑正确 |
-| **错误处理** | ✅ 正常 | 401/404/500正确返回 |
-| **CORS配置** | ✅ 正常 | 支持跨域请求 |
+| **JWT认证**    | ✅ 正常 | Token生成和验证正确   |
+| **路由配置**   | ✅ 正常 | 所有路由正确配置      |
+| **控制器**     | ✅ 正常 | 业务逻辑正确          |
+| **错误处理**   | ✅ 正常 | 401/404/500正确返回   |
+| **CORS配置**   | ✅ 正常 | 支持跨域请求          |
 
 ### 前后端对接状态
 
-| 检查项 | 状态 | 说明 |
-|--------|------|------|
+| 检查项        | 状态      | 说明                     |
+| ------------- | --------- | ------------------------ |
 | **Token发送** | ✅ 已修复 | 前端已添加 needAuth=true |
-| **Token格式** | ✅ 正确 | `Bearer <token>` |
-| **Token验证** | ✅ 正常 | 后端正确验证 |
+| **Token格式** | ✅ 正确   | `Bearer <token>`         |
+| **Token验证** | ✅ 正常   | 后端正确验证             |
 
 ### 建议操作
 

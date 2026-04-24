@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>商品图片上传</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f5f5f5;
+      }
+      .container {
+        background-color: white;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+      h1 {
+        text-align: center;
+        margin-bottom: 30px;
+        color: #333;
+      }
+      .form-group {
+        margin-bottom: 20px;
+      }
+      label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #555;
+      }
+      input[type='file'] {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background-color: #fafafa;
+      }
+      button {
+        width: 100%;
+        padding: 12px;
+        background-color: #a67c52;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+      }
+      button:hover {
+        background-color: #8b4513;
+      }
+      .result {
+        margin-top: 20px;
+        padding: 15px;
+        border-radius: 4px;
+        display: none;
+      }
+      .success {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+      .error {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+      .preview {
+        margin-top: 20px;
+        max-width: 200px;
+        max-height: 200px;
+        display: none;
+      }
+      .preview img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>商品图片上传</h1>
+      <form id="uploadForm" enctype="multipart/form-data">
+        <div class="form-group">
+          <label for="imageFile">选择商品图片</label>
+          <input
+            type="file"
+            id="imageFile"
+            name="image"
+            accept="image/*"
+            required
+          />
+        </div>
+        <button type="submit">上传图片</button>
+      </form>
+
+      <div id="preview" class="preview">
+        <img id="previewImage" src="" alt="预览图" />
+      </div>
+
+      <div id="result" class="result"></div>
+    </div>
+
+    <script>
+      // 预览图片
+      document
+        .getElementById('imageFile')
+        .addEventListener('change', function (e) {
+          const file = e.target.files[0];
+          if (file && file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+              document.getElementById('previewImage').src = e.target.result;
+              document.getElementById('preview').style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+          }
+        });
+
+      // 表单提交
+      document
+        .getElementById('uploadForm')
+        .addEventListener('submit', async function (e) {
+          e.preventDefault();
+
+          const formData = new FormData(this);
+          const resultDiv = document.getElementById('result');
+          const previewDiv = document.getElementById('preview');
+
+          // 显示加载状态
+          resultDiv.style.display = 'none';
+
+          try {
+            const response = await fetch('/api/v1/goods/upload', {
+              method: 'POST',
+              body: formData,
+              headers: {
+                Authorization: 'Bearer ' + localStorage.getItem('token'),
+              },
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+              resultDiv.className = 'result success';
+              resultDiv.innerHTML = `
+                        <h4>上传成功！</h4>
+                        <p>图片URL: <code>${data.data.imageUrl}</code></p>
+                        <p>文件名: ${data.data.filename}</p>
+                        <p>文件大小: ${(data.data.size / 1024).toFixed(2)} KB</p>
+                    `;
+              resultDiv.style.display = 'block';
+
+              // 清空表单
+              this.reset();
+              previewDiv.style.display = 'none';
+            } else {
+              throw new Error(data.message || '上传失败');
+            }
+          } catch (error) {
+            resultDiv.className = 'result error';
+            resultDiv.innerHTML = `
+                    <h4>上传失败！</h4>
+                    <p>${error.message}</p>
+                `;
+            resultDiv.style.display = 'block';
+          }
+        });
+    </script>
+  </body>
+</html>

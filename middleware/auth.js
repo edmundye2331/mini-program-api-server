@@ -13,27 +13,33 @@ const { db } = require('../config/mysql');
 const authMiddleware = async (req, res, next) => {
   try {
     // 从请求头获取token
-    const authHeader = req.headers['authorization'] || req.headers['x-token'];
+    const authHeader = req.headers.authorization || req.headers['x-token'];
 
     if (!authHeader) {
-      return res.error('未提供认证令牌', 401, { code: 'NO_TOKEN' });
+      return res.error('USER.UNAUTHORIZED', 401, null, req);
     }
 
     // 提取token
     const token = extractToken(authHeader);
 
     if (!token) {
-      return res.error('令牌格式错误', 401, { code: 'INVALID_TOKEN_FORMAT' });
+      return res.error('USER.INVALID_TOKEN', 401, null, req);
+    }
+
+    // 检查token是否在黑名单中（已注销）
+    const { isTokenBlacklisted } = require('../utils/jwt-blacklist');
+    const blacklisted = await isTokenBlacklisted(token);
+
+    if (blacklisted) {
+      return res.error('USER.TOKEN_EXPIRED', 401, 'Token已被注销', req);
     }
 
     // 验证token
+    const { secret } = require('../config/jwt');
     const verification = verifyToken(token);
 
     if (!verification.success) {
-      return res.error('令牌无效或已过期', 401, {
-        code: 'TOKEN_VERIFICATION_FAILED',
-        error: verification.error
-      });
+      return res.error('USER.INVALID_TOKEN', 401, verification.error, req);
     }
 
     // 获取token中的用户信息
@@ -43,20 +49,24 @@ const authMiddleware = async (req, res, next) => {
     const user = await db.findOne('users', { id: userId });
 
     if (!user) {
-      return res.error('用户不存在', 401, { code: 'USER_NOT_FOUND' });
+      return res.error('USER.USER_NOT_EXIST', 401, null, req);
     }
 
-    // 将用户信息附加到请求对象
+    // 将用户信息和token附加到请求对象
     req.user = {
       id: userId,
       phone: phone || user.phone,
-      ...user
+      ...user,
     };
+    req.token = token;
 
     next();
   } catch (error) {
-    console.error('认证中间件错误:', error);
-    return res.error('认证过程出错', 500, { code: 'AUTH_ERROR' });
+    // 生产环境移除console.error
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('认证中间件错误:', error);
+    }
+    return res.error('COMMON.INTERNAL_ERROR', 500, error, req);
   }
 };
 
@@ -67,7 +77,7 @@ const authMiddleware = async (req, res, next) => {
  */
 const optionalAuthMiddleware = async (req, res, next) => {
   try {
-    const authHeader = req.headers['authorization'] || req.headers['x-token'];
+    const authHeader = req.headers.authorization || req.headers['x-token'];
 
     if (!authHeader) {
       // 没有token，继续处理请求，但不附加用户信息
@@ -96,7 +106,7 @@ const optionalAuthMiddleware = async (req, res, next) => {
       req.user = {
         id: userId,
         phone: user.phone,
-        ...user
+        ...user,
       };
     } else {
       req.user = null;
@@ -104,7 +114,10 @@ const optionalAuthMiddleware = async (req, res, next) => {
 
     next();
   } catch (error) {
-    console.error('可选认证中间件错误:', error);
+    // 生产环境移除console.error
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('可选认证中间件错误:', error);
+    }
     req.user = null;
     next();
   }
@@ -112,5 +125,5 @@ const optionalAuthMiddleware = async (req, res, next) => {
 
 module.exports = {
   authMiddleware,
-  optionalAuthMiddleware
+  optionalAuthMiddleware,
 };

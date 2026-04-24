@@ -52,6 +52,7 @@ nano .env
 ```
 
 修改以下配置：
+
 ```env
 DB_TYPE=mysql
 MYSQL_HOST=localhost
@@ -69,6 +70,7 @@ npm start
 ```
 
 看到以下输出表示成功：
+
 ```
 ✅ MySQL数据库连接成功
 服务器运行在 http://localhost:3000
@@ -79,6 +81,7 @@ npm start
 ## 🧪 快速测试
 
 ### 测试数据库连接
+
 ```bash
 mysql -u root -p -e "USE miniprogram_db; SHOW TABLES;"
 ```
@@ -86,6 +89,7 @@ mysql -u root -p -e "USE miniprogram_db; SHOW TABLES;"
 应该看到18张表。
 
 ### 测试API
+
 ```bash
 # 获取商品分类
 curl http://localhost:3000/api/goods/categories

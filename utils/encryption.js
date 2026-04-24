@@ -4,6 +4,7 @@
  */
 
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 // 加密强度
 const SALT_ROUNDS = 10;
@@ -45,7 +46,8 @@ const verifyPassword = async (password, hashedPassword) => {
  * @returns {String} 随机字符串
  */
 const generateRandomString = (length = 16) => {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const chars =
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   let result = '';
   const randomArray = new Uint32Array(length);
   crypto.getRandomValues(randomArray);
@@ -64,8 +66,8 @@ const simpleHash = (str) => {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // 转换为32位整数
+    hash = (hash << 5) - hash + char;
+    hash &= hash; // 转换为32位整数
   }
   return Math.abs(hash).toString(16);
 };
@@ -74,5 +76,5 @@ module.exports = {
   hashPassword,
   verifyPassword,
   generateRandomString,
-  simpleHash
+  simpleHash,
 };

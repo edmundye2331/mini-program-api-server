@@ -15,14 +15,14 @@ const generalLimiter = rateLimit({
   message: {
     success: false,
     message: '请求过于频繁，请稍后再试',
-    retryAfter: '15分钟'
+    retryAfter: '15分钟',
   },
   standardHeaders: true, // 返回速率限制信息在 `RateLimit-*` 头中
   legacyHeaders: false, // 禁用 `X-RateLimit-*` 头
   // 跳过成功的请求（只计算失败的请求）
   skipSuccessfulRequests: false,
   // 跳过失败的请求
-  skipFailedRequests: false
+  skipFailedRequests: false,
 });
 
 /**
@@ -34,10 +34,10 @@ const strictLimiter = rateLimit({
   message: {
     success: false,
     message: '该操作请求过于频繁，请15分钟后再试',
-    retryAfter: '15分钟'
+    retryAfter: '15分钟',
   },
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
 });
 
 /**
@@ -50,14 +50,15 @@ const loginLimiter = rateLimit({
   message: {
     success: false,
     message: '登录尝试次数过多，请15分钟后再试',
-    retryAfter: '15分钟'
+    retryAfter: '15分钟',
   },
   standardHeaders: true,
   legacyHeaders: false,
   // 基于IP地址和手机号进行限制
-  keyGenerator: (req) => {
-    return ipKeyGenerator(req) + ':' + (req.body.phone || req.body.username || 'unknown');
-  }
+  keyGenerator: (req) =>
+    `${ipKeyGenerator(req)}:${
+      req.body.phone || req.body.username || 'unknown'
+    }`,
 });
 
 /**
@@ -69,14 +70,13 @@ const smsLimiter = rateLimit({
   message: {
     success: false,
     message: '验证码发送次数过多，请1小时后再试',
-    retryAfter: '1小时'
+    retryAfter: '1小时',
   },
   standardHeaders: true,
   legacyHeaders: false,
   // 基于手机号进行限制
-  keyGenerator: (req) => {
-    return ipKeyGenerator(req) + ':' + (req.body.phone || 'unknown');
-  }
+  keyGenerator: (req) =>
+    `${ipKeyGenerator(req)}:${req.body.phone || 'unknown'}`,
 });
 
 /**
@@ -89,10 +89,10 @@ const orderLimiter = rateLimit({
   message: {
     success: false,
     message: '订单创建次数过多，请稍后再试',
-    retryAfter: '1小时'
+    retryAfter: '1小时',
   },
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
 });
 
 /**
@@ -104,10 +104,10 @@ const paymentLimiter = rateLimit({
   message: {
     success: false,
     message: '支付请求过于频繁，请稍后再试',
-    retryAfter: '10分钟'
+    retryAfter: '10分钟',
   },
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
 });
 
 /**
@@ -116,13 +116,11 @@ const paymentLimiter = rateLimit({
  */
 const whitelist = ['127.0.0.1', '::1'];
 
-const createWhitelistLimiter = (limiter) => {
-  return (req, res, next) => {
-    if (whitelist.includes(req.ip)) {
-      return next(); // 跳过速率限制
-    }
-    return limiter(req, res, next);
-  };
+const createWhitelistLimiter = (limiter) => (req, res, next) => {
+  if (whitelist.includes(req.ip)) {
+    return next(); // 跳过速率限制
+  }
+  return limiter(req, res, next);
 };
 
 module.exports = {
@@ -133,5 +131,5 @@ module.exports = {
   orderLimiter,
   paymentLimiter,
   createWhitelistLimiter,
-  whitelist
+  whitelist,
 };

@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>商品管理后台</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f5f5f5;
+      }
+      .container {
+        background-color: white;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+      h1 {
+        text-align: center;
+        margin-bottom: 30px;
+        color: #333;
+      }
+      .tabs {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        border-bottom: 1px solid #ddd;
+        padding-bottom: 10px;
+      }
+      .tab {
+        padding: 8px 16px;
+        background-color: #f8f8f8;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background-color 0.3s;
+      }
+      .tab.active {
+        background-color: #a67c52;
+        color: white;
+      }
+      .tab:hover {
+        background-color: #e0e0e0;
+      }
+      .tab.active:hover {
+        background-color: #8b4513;
+      }
+      .content {
+        display: none;
+      }
+      .content.active {
+        display: block;
+      }
+      .form-group {
+        margin-bottom: 15px;
+      }
+      label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 600;
+        color: #555;
+      }
+      input[type='text'],
+      input[type='number'],
+      textarea,
+      select {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+      }
+      textarea {
+        resize: vertical;
+        min-height: 80px;
+      }
+      input[type='file'] {
+        width: 100%;
+        padding: 5px;
+      }
+      .button-group {
+        display: flex;
+        gap: 10px;
+      }
+      button {
+        padding: 8px 16px;
+        background-color: #a67c52;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background-color 0.3s;
+      }
+      button:hover {
+        background-color: #8b4513;
+      }
+      button:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+      }
+      button.secondary {
+        background-color: #6c757d;
+      }
+      button.secondary:hover {
+        background-color: #5a6268;
+      }
+      button.danger {
+        background-color: #dc3545;
+      }
+      button.danger:hover {
+        background-color: #c82333;
+      }
+      .result {
+        margin-top: 15px;
+        padding: 10px;
+        border-radius: 4px;
+        display: none;
+      }
+      .success {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+      .error {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+      .info {
+        background-color: #d1ecf1;
+        color: #0c5460;
+        border: 1px solid #bee5eb;
+      }
+      .product-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 15px;
+      }
+      .product-card {
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 10px;
+        text-align: center;
+      }
+      .product-card img {
+        width: 100%;
+        height: 150px;
+        object-fit: cover;
+        margin-bottom: 10px;
+      }
+      .product-card h3 {
+        font-size: 14px;
+        margin-bottom: 5px;
+        color: #333;
+      }
+      .product-card .price {
+        color: #a67c52;
+        font-weight: bold;
+      }
+      .product-card .status {
+        font-size: 12px;
+        margin-top: 5px;
+      }
+      .product-card .actions {
+        margin-top: 10px;
+        display: flex;
+        gap: 5px;
+        justify-content: center;
+      }
+      .product-card .actions button {
+        padding: 4px 8px;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>商品管理后台</h1>
+
+      <div class="tabs">
+        <button class="tab active" data-tab="products">商品列表</button>
+        <button class="tab" data-tab="add">添加商品</button>
+        <button class="tab" data-tab="categories">分类管理</button>
+        <button class="tab" data-tab="upload">图片上传</button>
+      </div>
+
+      <!-- 商品列表 -->
+      <div id="products" class="content active">
+        <h2>商品列表</h2>
+        <div class="product-list" id="productList"></div>
+        <div id="productsResult" class="result"></div>
+      </div>
+
+      <!-- 添加商品 -->
+      <div id="add" class="content">
+        <h2>添加商品</h2>
+        <form id="addProductForm">
+          <div class="form-group">
+            <label for="name">商品名称</label>
+            <input type="text" id="name" name="name" required />
+          </div>
+          <div class="form-group">
+            <label for="description">商品描述</label>
+            <textarea id="description" name="description"></textarea>
+          </div>
+          <div class="form-group">
+            <label for="price">价格</label>
+            <input type="number" id="price" name="price" step="0.01" required />
+          </div>
+          <div class="form-group">
+            <label for="originalPrice">原价</label>
+            <input
+              type="number"
+              id="originalPrice"
+              name="originalPrice"
+              step="0.01"
+            />
+          </div>
+          <div class="form-group">
+            <label for="categoryId">分类</label>
+            <select id="categoryId" name="categoryId"></select>
+          </div>
+          <div class="form-group">
+            <label for="image">商品图片</label>
+            <input type="file" id="image" name="image" />
+          </div>
+          <div class="form-group">
+            <label for="stock">库存</label>
+            <input type="number" id="stock" name="stock" min="0" />
+          </div>
+          <div class="form-group">
+            <label for="status">状态</label>
+            <select id="status" name="status">
+              <option value="onsale">上架</option>
+              <option value="soldout">下架</option>
+            </select>
+          </div>
+          <div class="button-group">
+            <button type="submit">添加商品</button>
+            <button type="reset" class="secondary">重置</button>
+          </div>
+        </form>
+        <div id="addResult" class="result"></div>
+      </div>
+
+      <!-- 分类管理 -->
+      <div id="categories" class="content">
+        <h2>分类管理</h2>
+        <div class="category-list" id="categoryList"></div>
+        <div id="categoryResult" class="result"></div>
+      </div>
+
+      <!-- 图片上传 -->
+      <div id="upload" class="content">
+        <h2>图片上传</h2>
+        <form id="uploadForm" enctype="multipart/form-data">
+          <div class="form-group">
+            <label for="imageFile">选择商品图片</label>
+            <input
+              type="file"
+              id="imageFile"
+              name="image"
+              accept="image/*"
+              required
+            />
+          </div>
+          <div class="button-group">
+            <button type="submit">上传图片</button>
+          </div>
+        </form>
+        <div id="preview" class="preview"></div>
+        <div id="uploadResult" class="result"></div>
+      </div>
+    </div>
+
+    <script>
+      // 标签页切换
+      document.querySelectorAll('.tab').forEach((tab) => {
+        tab.addEventListener('click', function () {
+          const target = this.dataset.tab;
+          document
+            .querySelectorAll('.tab')
+            .forEach((t) => t.classList.remove('active'));
+          document
+            .querySelectorAll('.content')
+            .forEach((c) => c.classList.remove('active'));
+          this.classList.add('active');
+          document.getElementById(target).classList.add('active');
+          if (target === 'products') {
+            loadProducts();
+          } else if (target === 'categories') {
+            loadCategories();
+          }
+        });
+      });
+
+      // 加载分类选项
+      async function loadCategoryOptions() {
+        try {
+          const response = await fetch('/api/v1/goods/categories');
+          const data = await response.json();
+          if (data.success) {
+            const select = document.getElementById('categoryId');
+            select.innerHTML = data.data.list
+              .map((cat) => `<option value="${cat.id}">${cat.name}</option>`)
+              .join('');
+          }
+        } catch (error) {
+          console.error('加载分类失败:', error);
+        }
+      }
+
+      // 加载商品列表
+      async function loadProducts() {
+        try {
+          const response = await fetch('/api/v1/goods/list');
+          const data = await response.json();
+          if (data.success) {
+            const productList = document.getElementById('productList');
+            productList.innerHTML = data.data.list
+              .map(
+                (product) => `
+                        <div class="product-card">
+                            <img src="${getImageUrl(product.image)}" alt="${product.name}">
+                            <h3>${product.name}</h3>
+                            <div class="price">¥${product.price.toFixed(2)}</div>
+                            <div class="status">${product.status === 'onsale' ? '上架' : '下架'}</div>
+                            <div class="actions">
+                                <button onclick="editProduct(${product.id})">编辑</button>
+                                <button onclick="deleteProduct(${product.id})" class="danger">删除</button>
+                            </div>
+                        </div>
+                    `
+              )
+              .join('');
+          }
+        } catch (error) {
+          console.error('加载商品失败:', error);
+        }
+      }
+
+      // 加载分类列表
+      async function loadCategories() {
+        try {
+          const response = await fetch('/api/v1/goods/categories');
+          const data = await response.json();
+          if (data.success) {
+            const categoryList = document.getElementById('categoryList');
+            categoryList.innerHTML = data.data.list
+              .map(
+                (cat) => `
+                        <div class="category-item">
+                            <h3>${cat.name}</h3>
+                            <p>图标: ${cat.icon}</p>
+                            <div class="actions">
+                                <button onclick="editCategory(${cat.id})">编辑</button>
+                                <button onclick="deleteCategory(${cat.id})" class="danger">删除</button>
+                            </div>
+                        </div>
+                    `
+              )
+              .join('');
+          }
+        } catch (error) {
+          console.error('加载分类失败:', error);
+        }
+      }
+
+      // 获取图片URL
+      function getImageUrl(imagePath) {
+        if (!imagePath) return '';
+        if (imagePath.startsWith('http')) return imagePath;
+        return `/images/${imagePath}`;
+      }
+
+      // 添加商品
+      document
+        .getElementById('addProductForm')
+        .addEventListener('submit', async function (e) {
+          e.preventDefault();
+          const formData = new FormData(this);
+          const resultDiv = document.getElementById('addResult');
+          try {
+            const response = await fetch('/api/v1/goods/add', {
+              method: 'POST',
+              body: formData,
+              headers: {
+                Authorization: 'Bearer ' + localStorage.getItem('token'),
+              },
+            });
+            const data = await response.json();
+            if (data.success) {
+              resultDiv.className = 'result success';
+              resultDiv.innerHTML = '商品添加成功！';
+              this.reset();
+              loadProducts();
+            } else {
+              throw new Error(data.message || '添加失败');
+            }
+          } catch (error) {
+            resultDiv.className = 'result error';
+            resultDiv.innerHTML = '添加失败: ' + error.message;
+          }
+          resultDiv.style.display = 'block';
+        });
+
+      // 图片上传
+      document
+        .getElementById('uploadForm')
+        .addEventListener('submit', async function (e) {
+          e.preventDefault();
+          const formData = new FormData(this);
+          const resultDiv = document.getElementById('uploadResult');
+          try {
+            const response = await fetch('/api/v1/goods/upload', {
+              method: 'POST',
+              body: formData,
+              headers: {
+                Authorization: 'Bearer ' + localStorage.getItem('token'),
+              },
+            });
+            const data = await response.json();
+            if (data.success) {
+              resultDiv.className = 'result success';
+              resultDiv.innerHTML = `
+                        <h4>上传成功！</h4>
+                        <p>图片URL: <code>${data.data.imageUrl}</code></p>
+                        <p>文件名: ${data.data.filename}</p>
+                        <p>文件大小: ${(data.data.size / 1024).toFixed(2)} KB</p>
+                    `;
+              this.reset();
+            } else {
+              throw new Error(data.message || '上传失败');
+            }
+          } catch (error) {
+            resultDiv.className = 'result error';
+            resultDiv.innerHTML = '上传失败: ' + error.message;
+          }
+          resultDiv.style.display = 'block';
+        });
+
+      // 初始化
+      document.addEventListener('DOMContentLoaded', function () {
+        loadCategoryOptions();
+        loadProducts();
+      });
+
+      // 编辑和删除函数（需要实现）
+      function editProduct(id) {
+        alert('编辑功能暂未实现');
+      }
+
+      function deleteProduct(id) {
+        if (confirm('确定要删除这个商品吗？')) {
+          alert('删除功能暂未实现');
+        }
+      }
+
+      function editCategory(id) {
+        alert('编辑功能暂未实现');
+      }
+
+      function deleteCategory(id) {
+        if (confirm('确定要删除这个分类吗？')) {
+          alert('删除功能暂未实现');
+        }
+      }
+    </script>
+  </body>
+</html>

@@ -28,12 +28,14 @@
 ### 迁移范围
 
 **涉及的文件**:
+
 - `controllers/*.js` - 所有控制器文件（约15个）
 - `config/database.js` - 内存数据库配置（保留用于回滚）
 - `utils/mysql.js` - MySQL连接类（已创建）
 - `utils/databaseAdapter.js` - 数据库适配器（已创建）
 
 **不涉及的文件**:
+
 - 前端代码
 - API路由定义
 - 中间件
@@ -42,6 +44,7 @@
 ### 迁移策略
 
 采用**渐进式迁移**策略：
+
 1. 保持API接口不变
 2. 逐个迁移Controller
 3. 充分测试后再迁移下一个
@@ -74,6 +77,7 @@ mysql -u root -p < database/complete-schema.sql
 #### 1.3 配置环境变量
 
 创建 `.env` 文件：
+
 ```env
 NODE_ENV=development
 PORT=3000
@@ -124,10 +128,12 @@ mysql -u root -p -e "USE miniprogram_db; SELECT COUNT(*) FROM goods;"
 **优先级**: 低
 
 **Controller列表**:
+
 1. ✅ `commonController.js` - 公共接口（门店、优惠券、协议）
 2. ✅ `goodsController.js` (部分) - 商品查询
 
 **原因**:
+
 - 只读操作，风险低
 - 不涉及复杂业务逻辑
 - 容易验证
@@ -139,10 +145,12 @@ mysql -u root -p -e "USE miniprogram_db; SELECT COUNT(*) FROM goods;"
 **优先级**: 中
 
 **Controller列表**:
+
 1. ✅ `goodsController.js` (完整) - 包含购物车操作
 2. ✅ 购物车相关路由
 
 **原因**:
+
 - 涉及读写操作
 - 购物车逻辑较复杂
 - 需要处理JSON字段
@@ -154,10 +162,12 @@ mysql -u root -p -e "USE miniprogram_db; SELECT COUNT(*) FROM goods;"
 **优先级**: 高
 
 **Controller列表**:
+
 1. ✅ `userController.js` - 用户登录、信息管理
 2. ✅ `memberController.js` - 会员信息、余额积分
 
 **原因**:
+
 - 核心业务功能
 - 涉及认证授权
 - 需要特别注意数据类型转换
@@ -169,10 +179,12 @@ mysql -u root -p -e "USE miniprogram_db; SELECT COUNT(*) FROM goods;"
 **优先级**: 最高
 
 **Controller列表**:
+
 1. ✅ `orderController.js` - 订单CRUD
 2. ✅ 订单支付流程
 
 **原因**:
+
 - 最复杂的业务逻辑
 - 涉及items数组的分离存储
 - 需要事务保证数据一致性
@@ -182,6 +194,7 @@ mysql -u root -p -e "USE miniprogram_db; SELECT COUNT(*) FROM goods;"
 **目标**: 迁移剩余的Controller
 
 **Controller列表**:
+
 1. ✅ `pointsController.js` - 积分兑换
 2. ✅ `birthdayController.js` - 生日礼
 3. ✅ `securityController.js` - 安全设置
@@ -324,6 +337,7 @@ exports.addToCart = async (req, res) => {
 ```
 
 **测试要点**:
+
 ```bash
 # 测试商品列表
 curl http://localhost:3000/api/goods/list
@@ -345,6 +359,7 @@ curl http://localhost:3000/api/goods/cart?userId=test-user-001
 ### 步骤4: 迁移 userController.js 和 memberController.js
 
 **注意事项**:
+
 1. balance字段需要转换为字符串
 2. 登录时需要同时创建users和members记录
 3. wechat_session_key需要正确存储
@@ -364,7 +379,7 @@ const phoneLogin = async (req, res) => {
         id: generateId(),
         phone,
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       };
       await adapter.createUser(user);
 
@@ -374,7 +389,7 @@ const phoneLogin = async (req, res) => {
         balance: '0.00',
         points: 0,
         coupons: 0,
-        level: 1
+        level: 1,
       });
     }
 
@@ -385,13 +400,13 @@ const phoneLogin = async (req, res) => {
       success: true,
       data: {
         token,
-        userInfo: user
-      }
+        userInfo: user,
+      },
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -402,6 +417,7 @@ const phoneLogin = async (req, res) => {
 ### 步骤5: 迁移 orderController.js (最复杂)
 
 **关键点**:
+
 1. items数组会自动处理
 2. 使用事务保证数据一致性
 3. 状态更新需要同时更新status和statusText
@@ -421,21 +437,21 @@ const createOrder = async (req, res) => {
       orderNo,
       userId,
       orderType,
-      items,  // 传入items数组
+      items, // 传入items数组
       totalAmount,
       actualAmount: totalAmount,
       discountAmount: 0,
-      remark: remark || ''
+      remark: remark || '',
     });
 
     res.json({
       success: true,
-      data: order
+      data: order,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -450,12 +466,12 @@ const getOrderList = async (req, res) => {
 
     res.json({
       success: true,
-      data: { list: orders }
+      data: { list: orders },
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -466,6 +482,7 @@ const getOrderList = async (req, res) => {
 ### 步骤6: 迁移其他Controller
 
 按照相同的模式迁移：
+
 - `pointsController.js`
 - `birthdayController.js`
 - `securityController.js`
@@ -482,13 +499,11 @@ const getOrderList = async (req, res) => {
 // 测试模板示例
 describe('Goods Controller', () => {
   test('应该返回商品列表', async () => {
-    const response = await request(app)
-      .get('/api/goods/list')
-      .expect(200);
+    const response = await request(app).get('/api/goods/list').expect(200);
 
     expect(response.body.success).toBe(true);
     expect(response.body.data.list).toBeDefined();
-    expect(response.body.data.list[0].categoryId).toBeDefined();  // camelCase
+    expect(response.body.data.list[0].categoryId).toBeDefined(); // camelCase
   });
 
   test('应该按分类筛选商品', async () => {
@@ -496,15 +511,13 @@ describe('Goods Controller', () => {
       .get('/api/goods/list?categoryId=1')
       .expect(200);
 
-    response.body.data.list.forEach(item => {
+    response.body.data.list.forEach((item) => {
       expect(item.categoryId).toBe(1);
     });
   });
 
   test('应该返回商品详情', async () => {
-    const response = await request(app)
-      .get('/api/goods/detail/1')
-      .expect(200);
+    const response = await request(app).get('/api/goods/detail/1').expect(200);
 
     expect(response.body.data.id).toBe(1);
   });
@@ -516,7 +529,7 @@ describe('Goods Controller', () => {
       .send({
         userId: 'test-user-001',
         goodsId: 1,
-        quantity: 2
+        quantity: 2,
       })
       .expect(200);
 
@@ -614,6 +627,7 @@ exports.getGoodsList = async (req, res) => {
 ```
 
 **回滚步骤**:
+
 1. 注释掉MySQL版本
 2. 取消注释内存数据库版本
 3. 重启服务器
@@ -638,13 +652,13 @@ npm start
 
 ### 已识别的风险
 
-| 风险 | 严重性 | 可能性 | 缓解措施 |
-|-----|--------|--------|---------|
-| 数据丢失 | 高 | 低 | 1. 充分备份<br>2. 使用事务<br>3. 先在测试环境验证 |
-| API不兼容 | 中 | 中 | 1. 保持接口不变<br>2. 适配器处理转换<br>3. 充分测试 |
-| 性能下降 | 中 | 中 | 1. 使用连接池<br>2. 添加索引<br>3. 查询优化 |
-| 数据类型错误 | 低 | 中 | 1. 适配器自动转换<br>2. 单元测试覆盖 |
-| 迁移时间过长 | 低 | 低 | 1. 分阶段迁移<br>2. 每个Controller独立<br>3. 可以随时暂停 |
+| 风险         | 严重性 | 可能性 | 缓解措施                                                  |
+| ------------ | ------ | ------ | --------------------------------------------------------- |
+| 数据丢失     | 高     | 低     | 1. 充分备份<br>2. 使用事务<br>3. 先在测试环境验证         |
+| API不兼容    | 中     | 中     | 1. 保持接口不变<br>2. 适配器处理转换<br>3. 充分测试       |
+| 性能下降     | 中     | 中     | 1. 使用连接池<br>2. 添加索引<br>3. 查询优化               |
+| 数据类型错误 | 低     | 中     | 1. 适配器自动转换<br>2. 单元测试覆盖                      |
+| 迁移时间过长 | 低     | 低     | 1. 分阶段迁移<br>2. 每个Controller独立<br>3. 可以随时暂停 |
 
 ### 监控指标
 
@@ -657,7 +671,9 @@ console.log(`[MySQL] 查询商品列表: ${Date.now() - startTime}ms`);
 // 监控数据库连接
 const { pool } = require('./utils/mysql');
 setInterval(() => {
-  console.log(`[MySQL] 连接池状态: ${pool.pool._allConnections.length}/${pool.pool._freeConnections.length}`);
+  console.log(
+    `[MySQL] 连接池状态: ${pool.pool._allConnections.length}/${pool.pool._freeConnections.length}`
+  );
 }, 60000);
 
 // 监控错误
@@ -705,16 +721,16 @@ process.on('unhandledRejection', (error) => {
 
 使用以下表格跟踪迁移进度：
 
-| Controller | 开始时间 | 完成时间 | 测试状态 | 备注 |
-|-----------|---------|---------|---------|------|
-| commonController.js | | | ⬜ | |
-| goodsController.js | | | ⬜ | |
-| userController.js | | | ⬜ | |
-| memberController.js | | | ⬜ | |
-| orderController.js | | | ⬜ | |
-| pointsController.js | | | ⬜ | |
-| birthdayController.js | | | ⬜ | |
-| securityController.js | | | ⬜ | |
+| Controller            | 开始时间 | 完成时间 | 测试状态 | 备注 |
+| --------------------- | -------- | -------- | -------- | ---- |
+| commonController.js   |          |          | ⬜       |      |
+| goodsController.js    |          |          | ⬜       |      |
+| userController.js     |          |          | ⬜       |      |
+| memberController.js   |          |          | ⬜       |      |
+| orderController.js    |          |          | ⬜       |      |
+| pointsController.js   |          |          | ⬜       |      |
+| birthdayController.js |          |          | ⬜       |      |
+| securityController.js |          |          | ⬜       |      |
 
 ---
 

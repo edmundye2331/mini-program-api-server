@@ -201,7 +201,7 @@ EXIT;
 ```javascript
 const { testConnection } = require('./config/mysql');
 
-testConnection().then(success => {
+testConnection().then((success) => {
   if (success) {
     console.log('✅ 数据库连接测试成功！');
     process.exit(0);
@@ -249,7 +249,7 @@ const exportData = {
   products: database.goods,
   categories: database.goodsCategories,
   pointsGoods: database.pointsGoods,
-  stores: database.stores
+  stores: database.stores,
 };
 
 // 保存为JSON
@@ -274,6 +274,7 @@ console.log('✅ 内存数据已导出到 memory-data-export.json');
 **错误信息**：`Access denied for user 'root'@'localhost'`
 
 **解决方案**：
+
 ```bash
 # 重置root密码
 mysql -u root -p
@@ -303,13 +304,14 @@ ALTER DATABASE miniprogram_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 **错误信息**：`Connection limit exceeded`
 
 **解决方案**：
+
 ```javascript
 // config/mysql.js
 const dbConfig = {
   // ...
-  connectionLimit: 20,  // 增加连接池大小
+  connectionLimit: 20, // 增加连接池大小
   waitForConnections: true,
-  queueLimit: 0
+  queueLimit: 0,
 };
 ```
 
@@ -318,6 +320,7 @@ const dbConfig = {
 **错误信息**：时间不正确
 
 **解决方案**：
+
 ```sql
 -- 检查MySQL时区设置
 SELECT @@global.time_zone, @@session.time_zone;
@@ -331,6 +334,7 @@ SET GLOBAL time_zone = '+8:00';
 **错误信息**：`Cannot add or update a child row`
 
 **解决方案**：
+
 ```sql
 -- 临时禁用外键检查
 SET FOREIGN_KEY_CHECKS = 0;
@@ -520,8 +524,8 @@ const dbConfig = {
   ssl: {
     ca: fs.readFileSync('/path/to/ca-cert.pem'),
     key: fs.readFileSync('/path/to/client-key.pem'),
-    cert: fs.readFileSync('/path/to/client-cert.pem')
-  }
+    cert: fs.readFileSync('/path/to/client-cert.pem'),
+  },
 };
 ```
 
@@ -531,13 +535,10 @@ const dbConfig = {
 
 ```javascript
 // ✅ 正确：使用参数化
-const results = await query(
-  'SELECT * FROM users WHERE id = ?',
-  [userId]
-);
+const results = await query('SELECT * FROM users WHERE id = ?', [userId]);
 
 // ❌ 错误：直接拼接SQL
-const sql = 'SELECT * FROM users WHERE id = ' + userId;  // 危险！
+const sql = 'SELECT * FROM users WHERE id = ' + userId; // 危险！
 ```
 
 ---
@@ -589,6 +590,7 @@ mysqldump -u root -p miniprogram_db > backup.sql
 5. ✅ 部署到生产环境
 
 详细的代码实现请参考：
+
 - `/miniprogram-api-server/config/mysql.js` - 数据库配置
 - `/miniprogram-api-server/database/schema.sql` - 数据库结构
 - `/miniprogram-api-server/database/init-data.sql` - 初始化数据
@@ -598,6 +600,7 @@ mysqldump -u root -p miniprogram_db > backup.sql
 ## 📞 技术支持
 
 如遇到问题，请检查：
+
 1. MySQL服务是否正在运行
 2. 数据库配置是否正确
 3. 用户权限是否足够

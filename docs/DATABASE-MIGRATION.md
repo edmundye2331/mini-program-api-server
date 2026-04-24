@@ -24,26 +24,26 @@
 
 ### 数据表清单
 
-| 表名 | 说明 | 主要字段 |
-|------|------|----------|
-| `users` | 用户表 | id, phone, wechat_openid, nickname, avatar |
-| `members` | 会员表 | user_id, balance, points, coupons, level |
-| `stores` | 门店表 | name, address, phone, latitude, longitude |
-| `categories` | 商品分类表 | name, icon, sort |
-| `products` | 商品表 | category_id, name, price, stock, sales |
-| `orders` | 订单表 | order_no, user_id, total_amount, status |
-| `order_items` | 订单明细表 | order_id, product_id, quantity, subtotal |
-| `points_goods` | 积分商品表 | name, points, stock |
-| `points_records` | 积分记录表 | user_id, type, amount, balance |
-| `exchange_records` | 兑换记录表 | user_id, goods_id, points |
-| `recharge_records` | 充值记录表 | user_id, amount, bonus_amount |
-| `balance_records` | 余额记录表 | user_id, type, amount, balance |
-| `coupons` | 优惠券表 | user_id, type, value, start_date, end_date |
-| `birthday_gifts` | 生日礼表 | user_id, year, is_claimed |
-| `carts` | 购物车表 | user_id, items (JSON) |
-| `login_logs` | 登录日志表 | user_id, login_type, ip, device |
-| `password_history` | 密码历史表 | user_id, password_hash |
-| `protocols` | 协议表 | type, title, content, version |
+| 表名               | 说明       | 主要字段                                   |
+| ------------------ | ---------- | ------------------------------------------ |
+| `users`            | 用户表     | id, phone, wechat_openid, nickname, avatar |
+| `members`          | 会员表     | user_id, balance, points, coupons, level   |
+| `stores`           | 门店表     | name, address, phone, latitude, longitude  |
+| `categories`       | 商品分类表 | name, icon, sort                           |
+| `products`         | 商品表     | category_id, name, price, stock, sales     |
+| `orders`           | 订单表     | order_no, user_id, total_amount, status    |
+| `order_items`      | 订单明细表 | order_id, product_id, quantity, subtotal   |
+| `points_goods`     | 积分商品表 | name, points, stock                        |
+| `points_records`   | 积分记录表 | user_id, type, amount, balance             |
+| `exchange_records` | 兑换记录表 | user_id, goods_id, points                  |
+| `recharge_records` | 充值记录表 | user_id, amount, bonus_amount              |
+| `balance_records`  | 余额记录表 | user_id, type, amount, balance             |
+| `coupons`          | 优惠券表   | user_id, type, value, start_date, end_date |
+| `birthday_gifts`   | 生日礼表   | user_id, year, is_claimed                  |
+| `carts`            | 购物车表   | user_id, items (JSON)                      |
+| `login_logs`       | 登录日志表 | user_id, login_type, ip, device            |
+| `password_history` | 密码历史表 | user_id, password_hash                     |
+| `protocols`        | 协议表     | type, title, content, version              |
 
 **总计**: 18张表
 
@@ -54,6 +54,7 @@
 ### 1. 安装MySQL
 
 #### macOS (Homebrew)
+
 ```bash
 # 安装MySQL
 brew install mysql
@@ -66,6 +67,7 @@ mysql_secure_installation
 ```
 
 #### Ubuntu/Debian
+
 ```bash
 # 安装MySQL
 sudo apt update
@@ -80,6 +82,7 @@ sudo mysql_secure_installation
 ```
 
 #### Windows
+
 1. 下载MySQL Installer: https://dev.mysql.com/downloads/installer/
 2. 运行安装程序
 3. 选择"Developer Default"安装类型
@@ -220,6 +223,7 @@ npm install
 ```
 
 确认package.json中已包含：
+
 ```json
 {
   "dependencies": {
@@ -268,30 +272,28 @@ const { db } = require('../utils/mysql');
 const user = await db.findOne('users', { id: userId });
 
 // 查询多个用户
-const users = await db.findMany('users', { is_active: true }, {
-  orderBy: 'created_at',
-  order: 'DESC',
-  limit: 10
-});
+const users = await db.findMany(
+  'users',
+  { is_active: true },
+  {
+    orderBy: 'created_at',
+    order: 'DESC',
+    limit: 10,
+  }
+);
 
 // 插入数据
 const result = await db.insert('users', {
   id: userId,
   phone: '13800000000',
-  nickname: '测试用户'
+  nickname: '测试用户',
 });
 
 // 更新数据
-await db.update('users',
-  { nickname: '新昵称' },
-  { id: userId }
-);
+await db.update('users', { nickname: '新昵称' }, { id: userId });
 
 // 删除数据（软删除）
-await db.update('users',
-  { is_deleted: true },
-  { id: userId }
-);
+await db.update('users', { is_deleted: true }, { id: userId });
 
 // 查询数量
 const count = await db.count('users', { is_active: true });
@@ -312,6 +314,7 @@ await db.transaction(async (connection) => {
 ### 4. 原有代码迁移示例
 
 **迁移前**（使用内存数据库）:
+
 ```javascript
 const { database } = require('../config/database');
 
@@ -323,6 +326,7 @@ database.users.set(userId, userData);
 ```
 
 **迁移后**（使用MySQL）:
+
 ```javascript
 const { db } = require('../utils/mysql');
 
@@ -363,9 +367,13 @@ async function testDatabase() {
     console.log('分类数量:', categories.length);
 
     console.log('\n=== 测试查询商品 ===');
-    const products = await db.findMany('products', { status: 'onsale' }, {
-      limit: 5
-    });
+    const products = await db.findMany(
+      'products',
+      { status: 'onsale' },
+      {
+        limit: 5,
+      }
+    );
     console.log('商品数量:', products.length);
 
     console.log('\n=== 测试查询单条 ===');
@@ -377,7 +385,7 @@ async function testDatabase() {
       id: require('uuid').v4(),
       user_id: 'test-user-001',
       login_type: 'phone',
-      ip: '127.0.0.1'
+      ip: '127.0.0.1',
     });
     console.log('插入结果:', result);
 
@@ -393,6 +401,7 @@ testDatabase();
 ```
 
 运行测试：
+
 ```bash
 node test-db.js
 ```
@@ -422,6 +431,7 @@ curl http://localhost:3000/api/member/info?userId=test-user-001
 **错误**: `Access denied for user 'root'@'localhost'`
 
 **解决**:
+
 ```bash
 # 检查MySQL服务是否运行
 brew services list | grep mysql  # macOS
@@ -458,8 +468,8 @@ SHOW VARIABLES LIKE 'character%';
 // utils/mysql.js
 const dbConfig = {
   // ...
-  timezone: '+08:00',  // 中国时区
-  charset: 'utf8mb4'
+  timezone: '+08:00', // 中国时区
+  charset: 'utf8mb4',
 };
 ```
 
@@ -472,8 +482,8 @@ const dbConfig = {
 ```javascript
 // utils/mysql.js
 const dbConfig = {
-  connectionLimit: 20,  // 增加连接池大小
-  queueLimit: 0
+  connectionLimit: 20, // 增加连接池大小
+  queueLimit: 0,
 };
 ```
 
@@ -550,12 +560,14 @@ ANALYZE TABLE users, orders, order_items;
 ### 使用Git管理schema变更
 
 1. **修改schema时**:
+
 ```bash
 # 创建新的迁移文件
 touch database/migrations/002_add_user_avatar_index.sql
 ```
 
 2. **迁移文件格式**:
+
 ```sql
 -- 002_add_user_avatar_index.sql
 -- 添加用户头像索引
@@ -564,6 +576,7 @@ ALTER TABLE users ADD INDEX idx_avatar (avatar);
 ```
 
 3. **版本管理**:
+
 ```sql
 CREATE TABLE schema_migrations (
   version VARCHAR(20) PRIMARY KEY,

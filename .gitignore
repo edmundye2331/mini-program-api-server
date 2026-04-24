@@ -76,3 +76,10 @@ public/uploads/
 *.key
 *.crt
 *.cert
+*.pfx
+
+# ================================================
+# 安全审计报告
+# ================================================
+security-audit-report-*.txt
+security-audit-report-*.html

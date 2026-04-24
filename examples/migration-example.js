@@ -243,15 +243,15 @@ exports.getCategories = async (req, res) => {
       message: '获取分类成功',
       data: {
         list: categories,
-        total: categories.length
-      }
+        total: categories.length,
+      },
     });
   } catch (error) {
     console.error('获取分类错误:', error);
     res.status(500).json({
       success: false,
       message: '获取分类失败',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -267,7 +267,7 @@ exports.getGoodsList = async (req, res) => {
     // 注意：适配器会自动处理字段名转换和筛选
     const goods = await adapter.getGoodsList({
       categoryId: categoryId ? parseInt(categoryId) : undefined,
-      status: 'onsale'
+      status: 'onsale',
     });
 
     res.json({
@@ -275,15 +275,15 @@ exports.getGoodsList = async (req, res) => {
       message: '获取商品列表成功',
       data: {
         list: goods,
-        total: goods.length
-      }
+        total: goods.length,
+      },
     });
   } catch (error) {
     console.error('获取商品列表错误:', error);
     res.status(500).json({
       success: false,
       message: '获取商品列表失败',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -301,21 +301,21 @@ exports.getGoodsDetail = async (req, res) => {
     if (!goods) {
       return res.status(404).json({
         success: false,
-        message: '商品不存在'
+        message: '商品不存在',
       });
     }
 
     res.json({
       success: true,
       message: '获取商品详情成功',
-      data: goods
+      data: goods,
     });
   } catch (error) {
     console.error('获取商品详情错误:', error);
     res.status(500).json({
       success: false,
       message: '获取商品详情失败',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -330,7 +330,7 @@ exports.addToCart = async (req, res) => {
     if (!userId || !goodsId || !quantity) {
       return res.status(400).json({
         success: false,
-        message: '缺少必要参数'
+        message: '缺少必要参数',
       });
     }
 
@@ -340,7 +340,7 @@ exports.addToCart = async (req, res) => {
     if (!goods) {
       return res.status(404).json({
         success: false,
-        message: '商品不存在'
+        message: '商品不存在',
       });
     }
 
@@ -348,15 +348,17 @@ exports.addToCart = async (req, res) => {
     if (goods.stock < quantity) {
       return res.status(400).json({
         success: false,
-        message: '库存不足'
+        message: '库存不足',
       });
     }
 
     // 获取用户购物车
-    let userCart = await adapter.getCart(userId);
+    const userCart = await adapter.getCart(userId);
 
     // 检查商品是否已在购物车中
-    const existingItem = userCart.items.find(item => item.goodsId === parseInt(goodsId));
+    const existingItem = userCart.items.find(
+      (item) => item.goodsId === parseInt(goodsId)
+    );
 
     if (existingItem) {
       // 更新数量
@@ -368,7 +370,7 @@ exports.addToCart = async (req, res) => {
         name: goods.name,
         price: goods.price,
         image: goods.image,
-        quantity
+        quantity,
       });
     }
 
@@ -378,24 +380,25 @@ exports.addToCart = async (req, res) => {
     await adapter.saveCart(userId, userCart);
 
     // 计算总价
-    const totalAmount = userCart.items.reduce((sum, item) => {
-      return sum + item.price * item.quantity;
-    }, 0);
+    const totalAmount = userCart.items.reduce(
+      (sum, item) => sum + item.price * item.quantity,
+      0
+    );
 
     res.json({
       success: true,
       message: '加入购物车成功',
       data: {
         cart: userCart,
-        totalAmount
-      }
+        totalAmount,
+      },
     });
   } catch (error) {
     console.error('加入购物车错误:', error);
     res.status(500).json({
       success: false,
       message: '加入购物车失败',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -410,7 +413,7 @@ exports.getCartList = async (req, res) => {
     if (!userId) {
       return res.status(400).json({
         success: false,
-        message: '缺少用户ID'
+        message: '缺少用户ID',
       });
     }
 
@@ -418,14 +421,13 @@ exports.getCartList = async (req, res) => {
     const userCart = await adapter.getCart(userId);
 
     // 计算总价
-    const totalAmount = userCart.items.reduce((sum, item) => {
-      return sum + item.price * item.quantity;
-    }, 0);
+    const totalAmount = userCart.items.reduce(
+      (sum, item) => sum + item.price * item.quantity,
+      0
+    );
 
     // 计算总数量
-    const count = userCart.items.reduce((sum, item) => {
-      return sum + item.quantity;
-    }, 0);
+    const count = userCart.items.reduce((sum, item) => sum + item.quantity, 0);
 
     res.json({
       success: true,
@@ -433,15 +435,15 @@ exports.getCartList = async (req, res) => {
       data: {
         items: userCart.items,
         totalAmount,
-        count
-      }
+        count,
+      },
     });
   } catch (error) {
     console.error('获取购物车错误:', error);
     res.status(500).json({
       success: false,
       message: '获取购物车失败',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -456,7 +458,7 @@ exports.removeFromCart = async (req, res) => {
     if (!userId || !goodsId) {
       return res.status(400).json({
         success: false,
-        message: '缺少必要参数'
+        message: '缺少必要参数',
       });
     }
 
@@ -464,7 +466,9 @@ exports.removeFromCart = async (req, res) => {
     const userCart = await adapter.getCart(userId);
 
     // 过滤掉要删除的商品
-    userCart.items = userCart.items.filter(item => item.goodsId !== parseInt(goodsId));
+    userCart.items = userCart.items.filter(
+      (item) => item.goodsId !== parseInt(goodsId)
+    );
 
     userCart.updatedAt = new Date();
 
@@ -474,14 +478,14 @@ exports.removeFromCart = async (req, res) => {
     res.json({
       success: true,
       message: '删除成功',
-      data: userCart
+      data: userCart,
     });
   } catch (error) {
     console.error('删除购物车商品错误:', error);
     res.status(500).json({
       success: false,
       message: '删除失败',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -496,7 +500,7 @@ exports.updateCartItemQuantity = async (req, res) => {
     if (!userId || !goodsId || quantity === undefined) {
       return res.status(400).json({
         success: false,
-        message: '缺少必要参数'
+        message: '缺少必要参数',
       });
     }
 
@@ -504,12 +508,14 @@ exports.updateCartItemQuantity = async (req, res) => {
     const userCart = await adapter.getCart(userId);
 
     // 找到要更新的商品
-    const item = userCart.items.find(item => item.goodsId === parseInt(goodsId));
+    const item = userCart.items.find(
+      (item) => item.goodsId === parseInt(goodsId)
+    );
 
     if (!item) {
       return res.status(404).json({
         success: false,
-        message: '商品不在购物车中'
+        message: '商品不在购物车中',
       });
     }
 
@@ -518,7 +524,7 @@ exports.updateCartItemQuantity = async (req, res) => {
     if (goods.stock < quantity) {
       return res.status(400).json({
         success: false,
-        message: '库存不足'
+        message: '库存不足',
       });
     }
 
@@ -530,24 +536,25 @@ exports.updateCartItemQuantity = async (req, res) => {
     await adapter.saveCart(userId, userCart);
 
     // 计算总价
-    const totalAmount = userCart.items.reduce((sum, item) => {
-      return sum + item.price * item.quantity;
-    }, 0);
+    const totalAmount = userCart.items.reduce(
+      (sum, item) => sum + item.price * item.quantity,
+      0
+    );
 
     res.json({
       success: true,
       message: '更新成功',
       data: {
         cart: userCart,
-        totalAmount
-      }
+        totalAmount,
+      },
     });
   } catch (error) {
     console.error('更新购物车错误:', error);
     res.status(500).json({
       success: false,
       message: '更新失败',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -562,7 +569,7 @@ exports.clearCart = async (req, res) => {
     if (!userId) {
       return res.status(400).json({
         success: false,
-        message: '缺少用户ID'
+        message: '缺少用户ID',
       });
     }
 
@@ -571,14 +578,14 @@ exports.clearCart = async (req, res) => {
 
     res.json({
       success: true,
-      message: '清空购物车成功'
+      message: '清空购物车成功',
     });
   } catch (error) {
     console.error('清空购物车错误:', error);
     res.status(500).json({
       success: false,
       message: '清空失败',
-      error: error.message
+      error: error.message,
     });
   }
 };

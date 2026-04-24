@@ -43,10 +43,8 @@ const order = await adapter.createOrder({
   orderNo: 'DD20260403001',
   userId: 'xxx',
   orderType: 'dian',
-  items: [
-    { goodsId: 1, name: 'IPA精酿', price: 48, quantity: 2 }
-  ],
-  totalAmount: 96
+  items: [{ goodsId: 1, name: 'IPA精酿', price: 48, quantity: 2 }],
+  totalAmount: 96,
 });
 ```
 
@@ -61,13 +59,13 @@ const order = await adapter.createOrder({
 ```javascript
 // 后端代码使用 camelCase
 const goods = await adapter.getGoodsList({
-  categoryId: 1,    // 自动转换为 category_id
-  status: 'onsale'
+  categoryId: 1, // 自动转换为 category_id
+  status: 'onsale',
 });
 
 // 返回的数据也是 camelCase
-console.log(goods[0].categoryId);  // 来自 category_id
-console.log(goods[0].createdAt);   // 来自 created_at
+console.log(goods[0].categoryId); // 来自 category_id
+console.log(goods[0].createdAt); // 来自 created_at
 ```
 
 ### 2. 订单items处理
@@ -82,16 +80,16 @@ const order = await adapter.createOrder({
   orderType: 'dian',
   items: [
     { goodsId: 1, name: 'IPA精酿', price: 48, quantity: 2 },
-    { goodsId: 2, name: '炸薯条', price: 22, quantity: 1 }
+    { goodsId: 2, name: '炸薯条', price: 22, quantity: 1 },
   ],
-  totalAmount: 118
+  totalAmount: 118,
 });
 
 // items会自动保存到order_items表
 
 // 查询订单时，items会自动从order_items表加载
 const order = await adapter.getOrder(orderId);
-console.log(order.items);  // 数组格式
+console.log(order.items); // 数组格式
 ```
 
 ### 3. 购物车完整对象
@@ -119,7 +117,7 @@ await adapter.saveCart(userId, cart);
 ```javascript
 // balance自动转换为字符串（后端期望）
 const member = await adapter.getMember(userId);
-console.log(member.balance);  // "1000.00" (字符串)
+console.log(member.balance); // "1000.00" (字符串)
 ```
 
 ---
@@ -129,14 +127,17 @@ console.log(member.balance);  // "1000.00" (字符串)
 ### 用户操作
 
 #### `adapter.getUser(userId)`
+
 获取用户信息
 
 **参数**:
+
 - `userId` (string) - 用户ID
 
 **返回**: User对象或null
 
 **示例**:
+
 ```javascript
 const user = await adapter.getUser('user-123');
 // { id, phone, nickname, avatar, wechatOpenid, ... }
@@ -145,9 +146,11 @@ const user = await adapter.getUser('user-123');
 ---
 
 #### `adapter.getUserByPhone(phone)`
+
 通过手机号获取用户
 
 **示例**:
+
 ```javascript
 const user = await adapter.getUserByPhone('13800000001');
 ```
@@ -155,32 +158,37 @@ const user = await adapter.getUserByPhone('13800000001');
 ---
 
 #### `adapter.createUser(userData)`
+
 创建新用户
 
 **参数**:
+
 - `userData` (object) - 用户数据（camelCase格式）
 
 **示例**:
+
 ```javascript
 await adapter.createUser({
   id: 'user-123',
   phone: '13800000001',
   nickname: '张三',
   avatar: '/images/avatar.png',
-  gender: 'male'
+  gender: 'male',
 });
 ```
 
 ---
 
 #### `adapter.updateUser(userId, userData)`
+
 更新用户信息
 
 **示例**:
+
 ```javascript
 await adapter.updateUser('user-123', {
   nickname: '新昵称',
-  city: '北京'
+  city: '北京',
 });
 ```
 
@@ -189,11 +197,13 @@ await adapter.updateUser('user-123', {
 ### 会员操作
 
 #### `adapter.getMember(userId)`
+
 获取会员信息
 
 **返回**: Member对象，balance为字符串格式
 
 **示例**:
+
 ```javascript
 const member = await adapter.getMember('user-123');
 // {
@@ -208,29 +218,33 @@ const member = await adapter.getMember('user-123');
 ---
 
 #### `adapter.createMember(memberData)`
+
 创建会员
 
 **示例**:
+
 ```javascript
 await adapter.createMember({
   userId: 'user-123',
   balance: '0.00',
   points: 0,
   coupons: 0,
-  level: 1
+  level: 1,
 });
 ```
 
 ---
 
 #### `adapter.updateMember(userId, memberData)`
+
 更新会员信息
 
 **示例**:
+
 ```javascript
 await adapter.updateMember('user-123', {
   balance: '1500.00',
-  points: 600
+  points: 600,
 });
 ```
 
@@ -239,12 +253,15 @@ await adapter.updateMember('user-123', {
 ### 订单操作
 
 #### `adapter.createOrder(orderData)`
+
 创建订单（包含订单明细）
 
 **参数**:
+
 - `orderData` (object) - 订单数据，包含items数组
 
 **示例**:
+
 ```javascript
 const order = await adapter.createOrder({
   id: 'order-123',
@@ -258,24 +275,26 @@ const order = await adapter.createOrder({
       name: 'IPA精酿',
       image: '/images/beer-ipa.png',
       price: 48,
-      quantity: 2
-    }
+      quantity: 2,
+    },
   ],
   totalAmount: 96,
   discountAmount: 0,
   actualAmount: 96,
   status: 'pending',
   statusText: '待付款',
-  remark: ''
+  remark: '',
 });
 ```
 
 ---
 
 #### `adapter.getOrder(orderId)`
+
 获取订单详情（包含items）
 
 **示例**:
+
 ```javascript
 const order = await adapter.getOrder('order-123');
 // {
@@ -291,9 +310,11 @@ const order = await adapter.getOrder('order-123');
 ---
 
 #### `adapter.getOrdersByUser(userId, options)`
+
 获取用户的订单列表
 
 **参数**:
+
 - `userId` (string) - 用户ID
 - `options` (object) - 查询选项
   - `orderType` (string) - 订单类型筛选
@@ -302,6 +323,7 @@ const order = await adapter.getOrder('order-123');
   - `offset` (number) - 偏移量
 
 **示例**:
+
 ```javascript
 // 获取所有订单
 const orders = await adapter.getOrdersByUser('user-123');
@@ -310,16 +332,18 @@ const orders = await adapter.getOrdersByUser('user-123');
 const orders = await adapter.getOrdersByUser('user-123', {
   orderType: 'dian',
   status: 'completed',
-  limit: 10
+  limit: 10,
 });
 ```
 
 ---
 
 #### `adapter.updateOrderStatus(orderId, status, statusText)`
+
 更新订单状态
 
 **示例**:
+
 ```javascript
 await adapter.updateOrderStatus('order-123', 'paid', '已支付');
 ```
@@ -327,15 +351,13 @@ await adapter.updateOrderStatus('order-123', 'paid', '已支付');
 ---
 
 #### `adapter.updateOrderPayment(orderId, paymentMethod, paymentTime)`
+
 更新订单支付状态
 
 **示例**:
+
 ```javascript
-await adapter.updateOrderPayment(
-  'order-123',
-  'wechat',
-  new Date()
-);
+await adapter.updateOrderPayment('order-123', 'wechat', new Date());
 ```
 
 ---
@@ -343,11 +365,13 @@ await adapter.updateOrderPayment(
 ### 商品操作
 
 #### `adapter.getGoodsCategories()`
+
 获取商品分类列表
 
 **返回**: 分类数组
 
 **示例**:
+
 ```javascript
 const categories = await adapter.getGoodsCategories();
 // [
@@ -359,9 +383,11 @@ const categories = await adapter.getGoodsCategories();
 ---
 
 #### `adapter.getGoodsList(options)`
+
 获取商品列表
 
 **参数**:
+
 - `options` (object)
   - `categoryId` (number) - 分类ID筛选
   - `status` (string) - 状态筛选，默认'onsale'
@@ -369,6 +395,7 @@ const categories = await adapter.getGoodsCategories();
   - `offset` (number) - 偏移量
 
 **示例**:
+
 ```javascript
 // 获取所有在售商品
 const goods = await adapter.getGoodsList();
@@ -380,16 +407,18 @@ const goods = await adapter.getGoodsList({ categoryId: 1 });
 const goods = await adapter.getGoodsList({
   categoryId: 1,
   limit: 10,
-  offset: 0
+  offset: 0,
 });
 ```
 
 ---
 
 #### `adapter.getGoodsDetail(goodsId)`
+
 获取商品详情
 
 **示例**:
+
 ```javascript
 const goods = await adapter.getGoodsDetail(1);
 // { id: 1, categoryId: 1, name: 'IPA精酿', price: 48, ... }
@@ -400,11 +429,13 @@ const goods = await adapter.getGoodsDetail(1);
 ### 购物车操作
 
 #### `adapter.getCart(userId)`
+
 获取用户购物车
 
 **返回**: 完整的购物车对象
 
 **示例**:
+
 ```javascript
 const cart = await adapter.getCart('user-123');
 // {
@@ -420,26 +451,28 @@ const cart = await adapter.getCart('user-123');
 ---
 
 #### `adapter.saveCart(userId, cartData)`
+
 保存购物车
 
 **示例**:
+
 ```javascript
 await adapter.saveCart('user-123', {
   userId: 'user-123',
-  items: [
-    { goodsId: 1, name: 'IPA精酿', price: 48, quantity: 2 }
-  ],
+  items: [{ goodsId: 1, name: 'IPA精酿', price: 48, quantity: 2 }],
   createdAt: new Date(),
-  updatedAt: new Date()
+  updatedAt: new Date(),
 });
 ```
 
 ---
 
 #### `adapter.clearCart(userId)`
+
 清空购物车
 
 **示例**:
+
 ```javascript
 await adapter.clearCart('user-123');
 ```
@@ -449,12 +482,15 @@ await adapter.clearCart('user-123');
 ### 门店操作
 
 #### `adapter.getStores(activeOnly)`
+
 获取门店列表
 
 **参数**:
+
 - `activeOnly` (boolean) - 是否只返回营业中的门店，默认true
 
 **示例**:
+
 ```javascript
 // 获取所有营业中的门店
 const stores = await adapter.getStores();
@@ -468,9 +504,11 @@ const stores = await adapter.getStores(false);
 ### 积分商品操作
 
 #### `adapter.getPointsGoods(activeOnly)`
+
 获取积分商品列表
 
 **示例**:
+
 ```javascript
 const goods = await adapter.getPointsGoods();
 // [
@@ -482,9 +520,11 @@ const goods = await adapter.getPointsGoods();
 ---
 
 #### `adapter.reducePointsGoodsStock(goodsId, quantity)`
+
 扣减积分商品库存
 
 **示例**:
+
 ```javascript
 await adapter.reducePointsGoodsStock(1, 1);
 ```
@@ -494,9 +534,11 @@ await adapter.reducePointsGoodsStock(1, 1);
 ### 协议操作
 
 #### `adapter.getProtocol(type)`
+
 获取特定类型的协议内容
 
 **示例**:
+
 ```javascript
 const content = await adapter.getProtocol('recharge');
 // 返回协议文本内容
@@ -505,9 +547,11 @@ const content = await adapter.getProtocol('recharge');
 ---
 
 #### `adapter.getAllProtocols()`
+
 获取所有协议（对象格式）
 
 **示例**:
+
 ```javascript
 const protocols = await adapter.getAllProtocols();
 // {
@@ -523,9 +567,11 @@ const protocols = await adapter.getAllProtocols();
 ### 记录操作
 
 #### `adapter.createPointsRecord(recordData)`
+
 创建积分记录
 
 **示例**:
+
 ```javascript
 await adapter.createPointsRecord({
   id: 'pr-001',
@@ -533,16 +579,18 @@ await adapter.createPointsRecord({
   type: 'earn',
   amount: 100,
   balance: 600,
-  description: '消费获得积分'
+  description: '消费获得积分',
 });
 ```
 
 ---
 
 #### `adapter.getPointsRecords(userId, limit)`
+
 获取用户的积分记录
 
 **示例**:
+
 ```javascript
 const records = await adapter.getPointsRecords('user-123', 50);
 ```
@@ -550,35 +598,39 @@ const records = await adapter.getPointsRecords('user-123', 50);
 ---
 
 #### `adapter.createBalanceRecord(recordData)`
+
 创建余额记录
 
 **示例**:
+
 ```javascript
 await adapter.createBalanceRecord({
   id: 'br-001',
   userId: 'user-123',
   type: 'consumption',
-  amount: -50.00,
-  balance: 950.00,
-  description: '订单消费'
+  amount: -50.0,
+  balance: 950.0,
+  description: '订单消费',
 });
 ```
 
 ---
 
 #### `adapter.createRechargeRecord(recordData)`
+
 创建充值记录
 
 **示例**:
+
 ```javascript
 await adapter.createRechargeRecord({
   userId: 'user-123',
-  amount: 100.00,
-  bonusAmount: 20.00,
-  totalAmount: 120.00,
-  balanceBefore: 800.00,
-  balanceAfter: 920.00,
-  paymentMethod: 'wechat'
+  amount: 100.0,
+  bonusAmount: 20.0,
+  totalAmount: 120.0,
+  balanceBefore: 800.0,
+  balanceAfter: 920.0,
+  paymentMethod: 'wechat',
 });
 ```
 
@@ -589,6 +641,7 @@ await adapter.createRechargeRecord({
 ### 示例1: 迁移商品Controller
 
 **原有代码** (`controllers/goodsController.js`):
+
 ```javascript
 const { database } = require('../config/database');
 
@@ -598,41 +651,43 @@ exports.getGoodsList = (req, res) => {
   let goods = database.goods;
 
   if (categoryId) {
-    goods = goods.filter(item => item.categoryId === parseInt(categoryId));
+    goods = goods.filter((item) => item.categoryId === parseInt(categoryId));
   }
 
-  goods = goods.filter(item => item.status === 'onsale');
+  goods = goods.filter((item) => item.status === 'onsale');
 
   res.json({
     success: true,
-    data: { list: goods }
+    data: { list: goods },
   });
 };
 ```
 
 **迁移后**:
+
 ```javascript
 const adapter = require('../utils/databaseAdapter');
 
-exports.getGoodsList = async (req, res) => {  // 注意async
+exports.getGoodsList = async (req, res) => {
+  // 注意async
   try {
     const { categoryId } = req.query;
 
     // 使用适配器查询
     const goods = await adapter.getGoodsList({
       categoryId: categoryId ? parseInt(categoryId) : undefined,
-      status: 'onsale'
+      status: 'onsale',
     });
 
     res.json({
       success: true,
-      data: { list: goods }
+      data: { list: goods },
     });
   } catch (error) {
     res.status(500).json({
       success: false,
       message: '获取商品列表失败',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -643,6 +698,7 @@ exports.getGoodsList = async (req, res) => {  // 注意async
 ### 示例2: 迁移订单Controller
 
 **原有代码**:
+
 ```javascript
 const createOrder = (req, res) => {
   const { userId, orderType, items, totalAmount, remark } = req.body;
@@ -656,19 +712,20 @@ const createOrder = (req, res) => {
     totalAmount: totalAmount,
     status: 'pending',
     statusText: '待付款',
-    remark: remark || ''
+    remark: remark || '',
   };
 
   database.orders.set(order.id, order);
 
   res.json({
     success: true,
-    data: order
+    data: order,
   });
 };
 ```
 
 **迁移后**:
+
 ```javascript
 const adapter = require('../utils/databaseAdapter');
 
@@ -688,18 +745,18 @@ const createOrder = async (req, res) => {
       totalAmount,
       actualAmount: totalAmount,
       discountAmount: 0,
-      remark: remark || ''
+      remark: remark || '',
     });
 
     res.json({
       success: true,
-      data: order
+      data: order,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
       message: '创建订单失败',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -710,6 +767,7 @@ const createOrder = async (req, res) => {
 ### 示例3: 迁移购物车Controller
 
 **原有代码**:
+
 ```javascript
 exports.addToCart = (req, res) => {
   const { userId, goodsId, quantity } = req.body;
@@ -721,12 +779,14 @@ exports.addToCart = (req, res) => {
       userId,
       items: [],
       createdAt: formatDate(),
-      updatedAt: formatDate()
+      updatedAt: formatDate(),
     };
     database.carts.set(userId, userCart);
   }
 
-  const existingItem = userCart.items.find(item => item.goodsId === parseInt(goodsId));
+  const existingItem = userCart.items.find(
+    (item) => item.goodsId === parseInt(goodsId)
+  );
 
   if (existingItem) {
     existingItem.quantity += quantity;
@@ -741,6 +801,7 @@ exports.addToCart = (req, res) => {
 ```
 
 **迁移后**:
+
 ```javascript
 exports.addToCart = async (req, res) => {
   try {
@@ -761,7 +822,9 @@ exports.addToCart = async (req, res) => {
     }
 
     // 检查是否已在购物车
-    const existingItem = userCart.items.find(item => item.goodsId === parseInt(goodsId));
+    const existingItem = userCart.items.find(
+      (item) => item.goodsId === parseInt(goodsId)
+    );
 
     if (existingItem) {
       existingItem.quantity += quantity;
@@ -771,7 +834,7 @@ exports.addToCart = async (req, res) => {
         name: goods.name,
         price: goods.price,
         image: goods.image,
-        quantity
+        quantity,
       });
     }
 
@@ -785,7 +848,7 @@ exports.addToCart = async (req, res) => {
     res.status(500).json({
       success: false,
       message: '加入购物车失败',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -796,6 +859,7 @@ exports.addToCart = async (req, res) => {
 ### 示例4: 迁移会员Controller
 
 **原有代码**:
+
 ```javascript
 const getMemberInfo = (req, res) => {
   const { userId } = req.query;
@@ -808,7 +872,7 @@ const getMemberInfo = (req, res) => {
       balance: '0.00',
       points: 0,
       coupons: 0,
-      level: 1
+      level: 1,
     };
     database.members.set(userId, member);
   }
@@ -818,6 +882,7 @@ const getMemberInfo = (req, res) => {
 ```
 
 **迁移后**:
+
 ```javascript
 const getMemberInfo = async (req, res) => {
   try {
@@ -832,7 +897,7 @@ const getMemberInfo = async (req, res) => {
         balance: '0.00',
         points: 0,
         coupons: 0,
-        level: 1
+        level: 1,
       };
       await adapter.createMember(member);
     }
@@ -842,7 +907,7 @@ const getMemberInfo = async (req, res) => {
     res.status(500).json({
       success: false,
       message: '获取会员信息失败',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -876,7 +941,7 @@ exports.getGoodsList = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -890,13 +955,13 @@ exports.getGoodsList = async (req, res) => {
 // ✅ 正确
 const goods = await adapter.getGoodsList({
   categoryId: 1,
-  status: 'onsale'
+  status: 'onsale',
 });
 
 // ❌ 错误（适配器会自动转换，不需要手动写snake_case）
 const goods = await adapter.getGoodsList({
   category_id: 1,
-  status: 'onsale'
+  status: 'onsale',
 });
 ```
 
@@ -909,7 +974,10 @@ const { db } = require('../utils/mysql');
 
 await db.transaction(async (connection) => {
   // 多个数据库操作
-  await connection.execute('UPDATE members SET balance = balance - ? WHERE user_id = ?', [amount, userId]);
+  await connection.execute(
+    'UPDATE members SET balance = balance - ? WHERE user_id = ?',
+    [amount, userId]
+  );
   await connection.execute('INSERT INTO balance_records (...) VALUES (...)');
 });
 ```
@@ -948,12 +1016,15 @@ const goods = await db.findMany('goods');
 const { db } = require('../utils/mysql');
 
 // 复杂查询
-const results = await db.query(`
+const results = await db.query(
+  `
   SELECT g.*, c.name as category_name
   FROM goods g
   LEFT JOIN goods_categories c ON g.category_id = c.id
   WHERE g.status = ?
-`, ['onsale']);
+`,
+  ['onsale']
+);
 
 // 手动转换为camelCase
 const goods = adapter.toCamelCase(results);
@@ -964,6 +1035,7 @@ const goods = adapter.toCamelCase(results);
 ### Q3: 订单的items是如何保存的？
 
 **A**: 适配器会自动处理：
+
 1. 创建订单时，items数组会自动保存到order_items表
 2. 查询订单时，items会自动从order_items表加载并组装成数组
 
@@ -988,6 +1060,7 @@ await db.batchInsert('orders', orders.map(o => adapter.toSnakeCase(o)));
 ### Q5: 适配器性能如何？
 
 **A**: 适配器只是一个轻量级的转换层，性能开销极小：
+
 - 字段名转换：O(n)复杂度，n为字段数量
 - items组装：每次查询订单多一次数据库查询
 - 连接池：使用mysql2的连接池，性能优秀
@@ -999,6 +1072,7 @@ await db.batchInsert('orders', orders.map(o => adapter.toSnakeCase(o)));
 ## 📞 支持
 
 如有问题，请查看：
+
 - 完整API参考: 见上文的[API参考](#api参考)
 - 迁移示例: 见上文的[迁移示例](#迁移示例)
 - 兼容性报告: `docs/FINAL-COMPATIBILITY-REPORT.md`

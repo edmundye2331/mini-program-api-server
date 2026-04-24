@@ -10,17 +10,16 @@ const DEVELOPMENT_ORIGINS = [
   'http://localhost:3000',
   'http://127.0.0.1:3000',
   'http://localhost:8080',
-  'http://127.0.0.1:8080'
+  'http://127.0.0.1:8080',
 ];
 
 /**
  * 生产环境允许的域名
- * TODO: 替换为实际的小程序域名
+ * 需要替换为实际的小程序域名
  */
 const PRODUCTION_ORIGINS = [
-  // 添加生产环境的域名
-  // 'https://yourapp.com',
-  // 'https://api.yourapp.com'
+  'https://servicewechat.com', // 微信小程序基础域名
+  'https://your-miniprogram-domain.com', // 替换为实际的小程序业务域名
 ];
 
 /**
@@ -49,11 +48,15 @@ const corsOptions = {
 
     const allowedOrigins = getAllowedOrigins();
 
-    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
-      // 开发环境允许所有origin
+    // 严格控制允许的来源，避免任意来源访问
+    if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
-      callback(new Error('CORS不允许的来源: ' + origin));
+      // 生产环境移除console.error
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('CORS请求被拒绝:', origin);
+      }
+      callback(new Error('CORS不允许的来源'));
     }
   },
 
@@ -65,23 +68,20 @@ const corsOptions = {
     'Content-Type',
     'Authorization',
     'X-Token',
-    'X-Requested-With'
+    'X-Requested-With',
   ],
 
   // 暴露的响应头
-  exposedHeaders: [
-    'Content-Range',
-    'X-Content-Range'
-  ],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
 
   // 允许携带凭证（cookies）
   credentials: true,
 
   // 预检请求缓存时间（秒）
-  maxAge: 86400,  // 24小时
+  maxAge: 86400, // 24小时
 
   // 预飞请求响应状态码
-  optionsSuccessStatus: 200
+  optionsSuccessStatus: 200,
 };
 
 /**
@@ -97,7 +97,7 @@ const MINIPROGRAM_DOMAINS = [
  */
 const isMiniprogramRequest = (req) => {
   const referer = req.headers.referer || '';
-  return MINIPROGRAM_DOMAINS.some(domain => referer.includes(domain));
+  return MINIPROGRAM_DOMAINS.some((domain) => referer.includes(domain));
 };
 
 module.exports = {
@@ -105,5 +105,5 @@ module.exports = {
   getAllowedOrigins,
   isMiniprogramRequest,
   DEVELOPMENT_ORIGINS,
-  PRODUCTION_ORIGINS
+  PRODUCTION_ORIGINS,
 };

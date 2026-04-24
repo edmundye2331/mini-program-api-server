@@ -9,8 +9,8 @@
  * 4. 统一接口: 模拟原有的内存数据库访问方式
  */
 
-const { db } = require('./mysql');
 const { v4: uuidv4 } = require('uuid');
+const { db } = require('./mysql');
 
 class DatabaseAdapter {
   /**
@@ -25,7 +25,7 @@ class DatabaseAdapter {
    */
   camelToSnake(str) {
     if (typeof str !== 'string') return str;
-    return str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+    return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
   }
 
   /**
@@ -43,7 +43,7 @@ class DatabaseAdapter {
   toSnakeCase(obj) {
     if (!obj || typeof obj !== 'object') return obj;
     if (Array.isArray(obj)) {
-      return obj.map(item => this.toSnakeCase(item));
+      return obj.map((item) => this.toSnakeCase(item));
     }
 
     const result = {};
@@ -60,7 +60,7 @@ class DatabaseAdapter {
   toCamelCase(obj) {
     if (!obj || typeof obj !== 'object') return obj;
     if (Array.isArray(obj)) {
-      return obj.map(item => this.toCamelCase(item));
+      return obj.map((item) => this.toCamelCase(item));
     }
 
     const result = {};
@@ -166,7 +166,10 @@ class DatabaseAdapter {
     const dbMember = this.toSnakeCase(memberData);
 
     // 处理balance类型
-    if (dbMember.balance !== undefined && typeof dbMember.balance === 'string') {
+    if (
+      dbMember.balance !== undefined &&
+      typeof dbMember.balance === 'string'
+    ) {
       dbMember.balance = parseFloat(dbMember.balance);
     }
 
@@ -189,7 +192,7 @@ class DatabaseAdapter {
     // 1. 转换字段名
     const dbOrder = this.toSnakeCase({
       ...orderData,
-      id: orderId
+      id: orderId,
     });
 
     // 2. 提取items
@@ -219,7 +222,7 @@ class DatabaseAdapter {
           dbOrder.status || 'pending',
           dbOrder.status_text || '待付款',
           dbOrder.payment_method || null,
-          dbOrder.remark || ''
+          dbOrder.remark || '',
         ]
       );
 
@@ -237,7 +240,7 @@ class DatabaseAdapter {
             item.image || null,
             item.price,
             item.quantity,
-            item.price * item.quantity
+            item.price * item.quantity,
           ]
         );
       }
@@ -263,13 +266,13 @@ class DatabaseAdapter {
     const result = this.toCamelCase(order);
 
     // 将order_items转换为后端期望的格式
-    result.items = items.map(item => ({
+    result.items = items.map((item) => ({
       goodsId: item.product_id,
       name: item.product_name,
       image: item.product_image,
       price: parseFloat(item.product_price),
       quantity: item.quantity,
-      subtotal: parseFloat(item.subtotal)
+      subtotal: parseFloat(item.subtotal),
     }));
 
     return result;
@@ -282,7 +285,7 @@ class DatabaseAdapter {
     const { orderType, status, limit = 20, offset = 0 } = options;
 
     // 构建查询条件
-    let where = { user_id: userId };
+    const where = { user_id: userId };
     if (orderType) where.order_type = orderType;
     if (status) where.status = status;
 
@@ -291,7 +294,7 @@ class DatabaseAdapter {
       orderBy: 'created_at',
       order: 'DESC',
       limit,
-      offset
+      offset,
     });
 
     // 为每个订单添加items
@@ -308,10 +311,11 @@ class DatabaseAdapter {
    * 更新订单状态
    */
   async updateOrderStatus(orderId, status, statusText) {
-    await db.update('orders',
+    await db.update(
+      'orders',
       {
         status,
-        status_text: statusText
+        status_text: statusText,
       },
       { id: orderId }
     );
@@ -324,7 +328,7 @@ class DatabaseAdapter {
     const updateData = {
       payment_method: paymentMethod,
       status: 'paid',
-      status_text: '已支付'
+      status_text: '已支付',
     };
 
     if (paymentTime) {
@@ -344,10 +348,14 @@ class DatabaseAdapter {
    * 获取商品分类列表
    */
   async getGoodsCategories() {
-    const categories = await db.findMany('goods_categories', { is_active: true }, {
-      orderBy: 'sort',
-      order: 'ASC'
-    });
+    const categories = await db.findMany(
+      'goods_categories',
+      { is_active: true },
+      {
+        orderBy: 'sort',
+        order: 'ASC',
+      }
+    );
 
     return this.toCamelCase(categories);
   }
@@ -359,14 +367,14 @@ class DatabaseAdapter {
     const { categoryId, status = 'onsale', limit, offset } = options;
 
     // 构建查询条件
-    let where = {};
+    const where = {};
     if (categoryId) where.category_id = categoryId;
     if (status) where.status = status;
 
     // 查询商品
     const queryOptions = {
       orderBy: 'sort',
-      order: 'ASC'
+      order: 'ASC',
     };
 
     if (limit) queryOptions.limit = limit;
@@ -403,7 +411,7 @@ class DatabaseAdapter {
         userId,
         items: [],
         createdAt: null,
-        updatedAt: null
+        updatedAt: null,
       };
     }
 
@@ -412,7 +420,7 @@ class DatabaseAdapter {
       userId: cart.user_id,
       items: cart.items ? JSON.parse(cart.items) : [],
       createdAt: cart.created_at,
-      updatedAt: cart.updated_at
+      updatedAt: cart.updated_at,
     };
   }
 
@@ -428,7 +436,7 @@ class DatabaseAdapter {
       user_id: userId,
       items: itemsJson,
       created_at: cartData.createdAt,
-      updated_at: cartData.updatedAt
+      updated_at: cartData.updatedAt,
     };
 
     // 检查是否已存在
@@ -436,10 +444,11 @@ class DatabaseAdapter {
 
     if (existing) {
       // 更新
-      await db.update('carts',
+      await db.update(
+        'carts',
         {
           items: itemsJson,
-          updated_at: cartData.updatedAt
+          updated_at: cartData.updatedAt,
         },
         { user_id: userId }
       );
@@ -455,7 +464,8 @@ class DatabaseAdapter {
    * 清空购物车
    */
   async clearCart(userId) {
-    await db.update('carts',
+    await db.update(
+      'carts',
       { items: JSON.stringify([]) },
       { user_id: userId }
     );
@@ -474,7 +484,7 @@ class DatabaseAdapter {
     const where = activeOnly ? { is_active: true } : {};
     const stores = await db.findMany('stores', where, {
       orderBy: 'sort',
-      order: 'ASC'
+      order: 'ASC',
     });
 
     return this.toCamelCase(stores);
@@ -501,7 +511,7 @@ class DatabaseAdapter {
     const where = activeOnly ? { is_active: true } : {};
     const goods = await db.findMany('points_goods', where, {
       orderBy: 'sort',
-      order: 'ASC'
+      order: 'ASC',
     });
 
     return this.toCamelCase(goods);
@@ -562,11 +572,15 @@ class DatabaseAdapter {
    * 获取用户的积分记录
    */
   async getPointsRecords(userId, limit = 50) {
-    const records = await db.findMany('points_records', { user_id: userId }, {
-      orderBy: 'created_at',
-      order: 'DESC',
-      limit
-    });
+    const records = await db.findMany(
+      'points_records',
+      { user_id: userId },
+      {
+        orderBy: 'created_at',
+        order: 'DESC',
+        limit,
+      }
+    );
 
     return this.toCamelCase(records);
   }
@@ -590,11 +604,15 @@ class DatabaseAdapter {
    * 获取用户的兑换记录
    */
   async getExchangeRecords(userId, limit = 50) {
-    const records = await db.findMany('exchange_records', { user_id: userId }, {
-      orderBy: 'created_at',
-      order: 'DESC',
-      limit
-    });
+    const records = await db.findMany(
+      'exchange_records',
+      { user_id: userId },
+      {
+        orderBy: 'created_at',
+        order: 'DESC',
+        limit,
+      }
+    );
 
     return this.toCamelCase(records);
   }
@@ -611,7 +629,7 @@ class DatabaseAdapter {
   async createRechargeRecord(recordData) {
     const dbRecord = this.toSnakeCase({
       ...recordData,
-      id: recordData.id || uuidv4()
+      id: recordData.id || uuidv4(),
     });
     await db.insert('recharge_records', dbRecord);
     return recordData;
@@ -621,11 +639,15 @@ class DatabaseAdapter {
    * 获取用户的充值记录
    */
   async getRechargeRecords(userId, limit = 50) {
-    const records = await db.findMany('recharge_records', { user_id: userId }, {
-      orderBy: 'created_at',
-      order: 'DESC',
-      limit
-    });
+    const records = await db.findMany(
+      'recharge_records',
+      { user_id: userId },
+      {
+        orderBy: 'created_at',
+        order: 'DESC',
+        limit,
+      }
+    );
 
     return this.toCamelCase(records);
   }
@@ -642,7 +664,7 @@ class DatabaseAdapter {
   async createBalanceRecord(recordData) {
     const dbRecord = this.toSnakeCase({
       ...recordData,
-      id: recordData.id || uuidv4()
+      id: recordData.id || uuidv4(),
     });
     await db.insert('balance_records', dbRecord);
     return recordData;
@@ -652,11 +674,15 @@ class DatabaseAdapter {
    * 获取用户的余额记录
    */
   async getBalanceRecords(userId, limit = 50) {
-    const records = await db.findMany('balance_records', { user_id: userId }, {
-      orderBy: 'created_at',
-      order: 'DESC',
-      limit
-    });
+    const records = await db.findMany(
+      'balance_records',
+      { user_id: userId },
+      {
+        orderBy: 'created_at',
+        order: 'DESC',
+        limit,
+      }
+    );
 
     return this.toCamelCase(records);
   }
@@ -676,7 +702,7 @@ class DatabaseAdapter {
 
     const coupons = await db.findMany('coupons', where, {
       orderBy: 'created_at',
-      order: 'DESC'
+      order: 'DESC',
     });
 
     return this.toCamelCase(coupons);
@@ -701,10 +727,16 @@ class DatabaseAdapter {
    * 获取协议内容（简化访问方式，模拟后端的简单对象）
    */
   async getProtocol(type) {
-    const protocol = await db.findOne('protocols', {
-      type,
-      is_active: true
-    }, [], ['created_at'], 'DESC');
+    const protocol = await db.findOne(
+      'protocols',
+      {
+        type,
+        is_active: true,
+      },
+      [],
+      ['created_at'],
+      'DESC'
+    );
 
     return protocol ? protocol.content : null;
   }
@@ -717,10 +749,16 @@ class DatabaseAdapter {
     const result = {};
 
     for (const type of types) {
-      const protocol = await db.findOne('protocols', {
-        type,
-        is_active: true
-      }, [], ['created_at'], 'DESC');
+      const protocol = await db.findOne(
+        'protocols',
+        {
+          type,
+          is_active: true,
+        },
+        [],
+        ['created_at'],
+        'DESC'
+      );
 
       if (protocol) {
         result[type] = protocol.content;
@@ -742,7 +780,7 @@ class DatabaseAdapter {
   async getBirthdayGift(userId, year) {
     const gift = await db.findOne('birthday_gifts', {
       user_id: userId,
-      year
+      year,
     });
 
     return gift ? this.toCamelCase(gift) : null;
@@ -754,7 +792,7 @@ class DatabaseAdapter {
   async createBirthdayGift(giftData) {
     const dbGift = this.toSnakeCase({
       ...giftData,
-      id: giftData.id || uuidv4()
+      id: giftData.id || uuidv4(),
     });
     await db.insert('birthday_gifts', dbGift);
     return giftData;
@@ -764,14 +802,15 @@ class DatabaseAdapter {
    * 领取生日礼
    */
   async claimBirthdayGift(userId, year) {
-    await db.update('birthday_gifts',
+    await db.update(
+      'birthday_gifts',
       {
         is_claimed: true,
-        claimed_at: new Date()
+        claimed_at: new Date(),
       },
       {
         user_id: userId,
-        year
+        year,
       }
     );
   }
@@ -788,7 +827,7 @@ class DatabaseAdapter {
   async createLoginLog(logData) {
     const dbLog = this.toSnakeCase({
       ...logData,
-      id: logData.id || uuidv4()
+      id: logData.id || uuidv4(),
     });
     await db.insert('login_logs', dbLog);
     return logData;
