@@ -44,6 +44,10 @@ const errorCodes = {
       code: '99009',
       message: { zh: '验证码已发送', en: 'Verification Code Already Sent' },
     },
+    CAPTCHA_FAILED: {
+      code: '99010',
+      message: { zh: '验证码验证失败', en: 'Captcha Verification Failed' },
+    },
   },
 
   // 用户模块错误码

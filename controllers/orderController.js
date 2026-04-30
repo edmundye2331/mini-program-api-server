@@ -630,9 +630,15 @@ const paymentNotify = async (req, res) => {
       console.error('微信支付回调签名验证失败');
       return res.json({ code: 'FAIL', message: '签名验证失败' });
     }
+    const decryptData = pay.decrypt(
+    req.body.resource.ciphertext,
+    req.body.resource.associated_data,
+    req.body.resource.nonce
+);
+
 
     // 解析支付通知
-    const notifyData = JSON.parse(req.body.toString('utf8'));
+    const notifyData = JSON.parse(decryptData);
 
     if (notifyData.event_type === 'TRANSACTIONS.SUCCESS') {
       const outTradeNo = notifyData.resource?.ciphertext?.out_trade_no;

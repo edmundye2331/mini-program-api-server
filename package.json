@@ -39,7 +39,7 @@
     "redis": "^5.12.1",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
-    "tencentcloud-sdk-nodejs": "^4.1.221",
+    "tencentcloud-sdk-nodejs-captcha": "^4.1.191",
     "uuid": "^9.0.0",
     "wechatpay-node-v3": "^2.2.1",
     "xss-clean": "^0.1.4"

@@ -116,6 +116,10 @@ const getBirthdayGiftRecords = async (userId) => {
   }));
 };
 
+const checkBirthdayGift=async(userId)=>{
+  
+}
+
 module.exports = {
   getBirthdayGift,
   claimBirthdayGift,

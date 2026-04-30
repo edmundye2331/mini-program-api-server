@@ -124,9 +124,11 @@ const sendSmsCodeSchema = Joi.object({
     .optional()
     .default('default')
     .error(new Error('验证码类型不正确')),
+  captchaTicket: Joi.string().optional(),
+  captchaRandstr: Joi.string().optional(),
 });
 
-// 验证验证码
+// 验证短信验证码
 const verifySmsCodeSchema = Joi.object({
   phone: Joi.string()
     .pattern(/^1[3-9]\d{9}$/)
@@ -142,6 +144,12 @@ const verifySmsCodeSchema = Joi.object({
     .optional()
     .default('default')
     .error(new Error('验证码类型不正确')),
+});
+
+// 验证腾讯云验证码
+const verifyCaptchaSchema = Joi.object({
+  ticket: Joi.string().required().error(new Error('缺少验证码ticket')),
+  randstr: Joi.string().required().error(new Error('缺少验证码randstr')),
 });
 
 // 验证刷新token
@@ -237,6 +245,7 @@ module.exports = {
   claimBirthdayGiftSchema,
   sendSmsCodeSchema,
   verifySmsCodeSchema,
+  verifyCaptchaSchema,
   refreshTokenSchema,
   logoutSchema,
   uploadSchema,

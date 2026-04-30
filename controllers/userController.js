@@ -22,7 +22,7 @@ const WX_APP_SECRET = process.env.WX_APP_SECRET || 'your_wechat_app_secret';
 /**
  * 手机号登录
  * @swagger
- * /api/user/login/phone:
+ * /api/v1/user/login/phone:
  *   post:
  *     summary: 手机号密码登录
  *     tags: [用户]

@@ -145,12 +145,35 @@ const createUser = async (userData, password = null) => {
  * @returns {Object} 更新后的用户信息
  */
 const updateUser = async (userId, updateData) => {
-  // 排除不可更新的字段
-  const { id: _, created_at: __, user_id: ___, ...updatableData } = updateData;
-  const updatedData = {
-    ...updatableData,
-    updated_at: formatDate(),
-  };
+  // // 排除不可更新的字段
+  // const { id: _, created_at: __, user_id: ___, ...updatableData } = updateData;
+  // const updatedData = {
+  //   ...updatableData,
+  //   updated_at: formatDate(),
+  // };
+    // 使用白名单方式，只允许更新特定字段
+  const allowedFields = [
+    'phone',
+    'avatar',
+    'nickname',
+    'gender',
+    'city',
+    'province',
+    'country',
+    'birthday',
+    'wechat_openid',
+  ];
+
+  // 只提取允许的字段
+  const updatedData = {};
+  allowedFields.forEach((field) => {
+    if (field in updateData) {
+      updatedData[field] = updateData[field];
+    }
+  });
+
+  // 添加更新时间
+  updatedData.updated_at = formatDate();
 
   // 获取旧用户信息，以便清除相关缓存
   const oldUser = await getUserById(userId);

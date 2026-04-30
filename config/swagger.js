@@ -19,12 +19,8 @@ const options = {
     },
     servers: [
       {
-        url: 'http://localhost:3000/api/v1',
-        description: '开发服务器v1',
-      },
-      {
-        url: 'http://localhost:3000/api',
-        description: '开发服务器（兼容旧版）',
+        url: 'http://localhost:3000',
+        description: '开发服务器',
       },
     ],
     components: {

@@ -11,6 +11,7 @@ const { generalLimiter, smsLimiter } = require('../middleware/rateLimiter');
 const {
   validate,
   sendSmsCodeSchema,
+  verifyCaptchaSchema,
 } = require('../middleware/validationMiddleware');
 
 // 获取门店列表
@@ -25,6 +26,14 @@ router.post(
   smsLimiter,
   validate(sendSmsCodeSchema),
   commonController.sendSmsCode
+);
+
+// 验证腾讯云验证码
+router.post(
+  '/captcha/verify',
+  generalLimiter,
+  validate(verifyCaptchaSchema),
+  commonController.verifyCaptchaCode
 );
 
 module.exports = router;
